@@ -2,6 +2,7 @@
 
 > Làm giống bộ AIF-C01 (`springboot-rag/docs/AIF-C01-NOTES.md`): note chính + cheatsheet + nhật ký quiz.
 > Nguồn chính: exam guide chính thức v1.0 (effective July 2026) bạn đã tải. Bắt đầu: 2026-10-31.
+> ⚠️ Kiểm tra 2026-11-03: đợt đổi đề **07/12/2026** chỉ áp dụng cho CCAO-F, CCDV-F, CCAR-P (guide mới ra 17/11). **CCAR-F không có trong danh sách** => vẫn học guide v1.0. Nguồn: [Pearson VUE - Anthropic](https://www.pearsonvue.com/us/en/anthropic.html). Sau 17/11 xem lại trang này + [Partner Academy](https://anthropic-partners.skilljar.com/claude-certified-architect-foundations-certification) 1 lần cho chắc.
 > Bản đọc nhanh trước giờ thi: `CCAR-F-CHEATSHEET.md`.
 
 **Ký hiệu nguồn**
@@ -552,6 +553,8 @@ claude -p "Review this PR for bugs and security issues" \
 ## 7. Bài tập thực hành (build để nhớ) `[G §8]`
 
 Guide khuyên làm 4 bài. Mỗi bài phủ 2-3 domain. Agent SDK có Python + TypeScript (chưa có Java) => làm bằng **Python** cho nhanh *(Claude)*.
+
+🧪 **Code sẵn:** [labs/README.md](labs/README.md) - 7 lab (làm sai trước, xem lỗi, rồi làm đúng). Lab 1-4 + 5 = Ex 1, lab 0 = Ex 2, lab 6 = Ex 3, lab 7 = Ex 4.
 
 **Ex 1 - Support agent có escalation** (D1, D2, D5) => Scenario 1
 - [ ] 3-4 MCP tool, có **2 tool gần giống nhau** cần description kỹ

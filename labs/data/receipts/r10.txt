@@ -1,0 +1,7 @@
+CITY TAXI - RIDE RECEIPT
+22 Oct 2026, 23:05
+
+Ride (airport -> downtown)   23.40
+Tip                           4.00
+Total charged                27.40 USD
+Card ending 0093

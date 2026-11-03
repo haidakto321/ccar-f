@@ -1,0 +1,23 @@
+[
+  {"order_id": "O1001", "customer_id": "C001", "ordered_on": "2026-10-18", "status": "delivered", "delivered_on": "2026-10-20",
+   "items": [{"sku": "HP-200", "name": "Wireless headphones", "qty": 1, "price": 129.00}],
+   "total": 129.00, "currency": "USD", "refunded_amount": 0.0},
+  {"order_id": "O1002", "customer_id": "C001", "ordered_on": "2026-07-30", "status": "delivered", "delivered_on": "2026-08-02",
+   "items": [{"sku": "KB-75", "name": "Mechanical keyboard", "qty": 1, "price": 89.00}],
+   "total": 89.00, "currency": "USD", "refunded_amount": 0.0},
+  {"order_id": "O1003", "customer_id": "C003", "ordered_on": "2026-10-28", "status": "delivered", "delivered_on": "2026-10-30",
+   "items": [{"sku": "LT-14", "name": "14-inch laptop", "qty": 1, "price": 820.00}],
+   "total": 820.00, "currency": "USD", "refunded_amount": 0.0},
+  {"order_id": "O1004", "customer_id": "C004", "ordered_on": "2026-10-22", "status": "delivered", "delivered_on": "2026-10-25",
+   "items": [{"sku": "MN-27", "name": "27-inch monitor", "qty": 1, "price": 310.00}, {"sku": "HD-01", "name": "HDMI cable", "qty": 2, "price": 15.00}],
+   "total": 340.00, "currency": "USD", "refunded_amount": 0.0},
+  {"order_id": "O1005", "customer_id": "C004", "ordered_on": "2026-08-28", "status": "delivered", "delivered_on": "2026-09-01",
+   "items": [{"sku": "CH-10", "name": "Office chair", "qty": 1, "price": 260.00}],
+   "total": 260.00, "currency": "USD", "refunded_amount": 260.00},
+  {"order_id": "O1006", "customer_id": "C005", "ordered_on": "2026-10-30", "status": "shipped", "delivered_on": null,
+   "items": [{"sku": "PC-03", "name": "Phone case", "qty": 1, "price": 19.00}],
+   "total": 19.00, "currency": "USD", "refunded_amount": 0.0},
+  {"order_id": "O1007", "customer_id": "C002", "ordered_on": "2026-10-12", "status": "delivered", "delivered_on": "2026-10-15",
+   "items": [{"sku": "SW-04", "name": "Smartwatch", "qty": 1, "price": 249.00}],
+   "total": 249.00, "currency": "USD", "refunded_amount": 0.0}
+]

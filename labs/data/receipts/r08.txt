@@ -1,0 +1,13 @@
+NIMBUS HOSTING B.V.  -  INVOICE #2026-1001
+VAT no: EU372001234
+Invoice date: 2026-10-01
+
+Description                Qty   Unit price   Amount
+VPS monthly plan            1      40.00       40.00
+Daily backup add-on         1       5.00        5.00
+
+Subtotal                                       45.00
+Tax: 0.00 (reverse charge)                      0.00
+Total due (USD)                                45.00
+
+Payment: bank transfer to IBAN NL00 BANK 0000 0000 00 within 14 days

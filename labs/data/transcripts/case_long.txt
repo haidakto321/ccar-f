@@ -1,0 +1,38 @@
+[Support chat - 2026-11-02. Agent = AI support agent, Customer = website visitor]
+
+Customer: hi, is anyone there
+Agent: Hi! I'm the support assistant. How can I help today?
+Customer: I bought something from you and I'm not happy
+Agent: I'm sorry to hear that. Can you tell me your email so I can find your account?
+Customer: sure, minh.le@example.com
+Agent: Thanks Minh. I found your account (customer C003). Which order is this about?
+Customer: the laptop. also I had an old order in 2024, O0999, a mouse, but that one was fine
+Agent: Got it, the laptop. Let me look it up.
+Agent: I see order O1003: one 14-inch laptop, total $820.00, delivered on 2026-10-30.
+Customer: yes that one
+Customer: when I opened the box the screen was cracked in the bottom left corner
+Customer: the outside box was dented too, like someone dropped it
+Agent: I'm really sorry. Did the laptop work otherwise?
+Customer: it turns on but there is a black area and lines over a third of the screen
+Agent: Thank you. Could you send photos of the screen and the box?
+Customer: just uploaded 3 photos
+Agent: I received the 3 photos. The damage is clear and it matches shipping damage.
+Customer: what are my options
+Agent: I can offer a replacement laptop or a refund.
+Customer: replacement first please, I need it for work
+Agent: Let me check stock for the same model.
+Agent: Sorry, the 14-inch laptop (LT-14) is out of stock until mid-December.
+Customer: that's too late. I start a new job on Monday
+Customer: then I want my money back, all of it
+Agent: I understand. A full refund would be $820.00.
+Agent: Refunds above $500 need approval from a human agent, so I can't send it myself.
+Customer: ugh. your colleague on the phone said it would be quick
+Agent: I don't see a phone call in your history, but I'll pass that on.
+Customer: also I paid with my credit card, I want it back on the same card
+Agent: Noted: refund to the original credit card.
+Customer: and I don't want to pay for return shipping, it wasn't my fault
+Agent: Understood. I'll note that you expect a free return label.
+Customer: how long will this take
+Agent: A human agent usually replies within one business day.
+Customer: ok. can I talk to a real person now please
+Agent: Yes. I'm handing your case to a human agent now.

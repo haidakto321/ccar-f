@@ -1,0 +1,13 @@
+{
+  "_note": "Ground truth for lab 6. null = the receipt does not print it. r07 has a printing error (39.00 + 3.12 is 42.12, not 43.12): extract what is printed and send it to a human.",
+  "r01": {"vendor": "Blue Bean Cafe", "date": "2026-10-02", "currency": "USD", "items": 2, "subtotal": 12.25, "tax": 1.01, "total": 13.26, "tax_id": "US-93-4417820", "payment_method": "card"},
+  "r02": {"vendor": "Quan Pho 24", "date": "2026-10-15", "currency": "VND", "items": 2, "subtotal": 140000, "tax": 11200, "total": 151200, "tax_id": "0301234567", "payment_method": "cash"},
+  "r03": {"vendor": "Gadget Hub", "date": "2026-10-07", "currency": "EUR", "items": 2, "subtotal": 54.47, "tax": 10.35, "total": 64.82, "tax_id": null, "payment_method": "other"},
+  "r04": {"vendor": "M&J Hardware", "date": null, "currency": null, "items": 2, "subtotal": null, "tax": null, "total": 25.00, "tax_id": null, "payment_method": "unclear"},
+  "r05": {"vendor": "Corner Store", "date": null, "currency": null, "items": 2, "subtotal": null, "tax": null, "total": 7.60, "tax_id": null, "payment_method": "cash"},
+  "r06": {"vendor": "Sakura Books", "date": "2026-09-28", "currency": "other", "items": 2, "subtotal": 2100, "tax": 210, "total": 2310, "tax_id": null, "payment_method": "card"},
+  "r07": {"vendor": "Quick Print Shop", "date": "2026-10-19", "currency": "USD", "items": 2, "subtotal": 39.00, "tax": 3.12, "total": 43.12, "tax_id": null, "payment_method": "card", "needs_review": true},
+  "r08": {"vendor": "Nimbus Hosting B.V.", "date": "2026-10-01", "currency": "USD", "items": 2, "subtotal": 45.00, "tax": 0.00, "total": 45.00, "tax_id": "EU372001234", "payment_method": "bank_transfer"},
+  "r09": {"vendor": "FreshMart Supermarket", "date": "2026-10-30", "currency": "USD", "items": 3, "subtotal": 13.05, "tax": 0.65, "total": 13.70, "tax_id": null, "payment_method": "card"},
+  "r10": {"vendor": "City Taxi", "date": "2026-10-22", "currency": "USD", "items": 2, "subtotal": null, "tax": null, "total": 27.40, "tax_id": null, "payment_method": "card"}
+}

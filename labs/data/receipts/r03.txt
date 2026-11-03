@@ -1,0 +1,16 @@
+From: orders@gadgethub.example
+Subject: Your Gadget Hub order is confirmed
+
+Hi Minh,
+
+Thanks for your order placed on Oct 7, 2026. Here is your summary:
+
+  USB-C cable (1 m)   qty 3   9.99 EUR each
+  65W charger         qty 1   24.50 EUR
+
+Net amount: 54.47 EUR
+VAT (19%): 10.35 EUR
+Order total: 64.82 EUR
+
+Payment: PayPal
+We will email you when it ships.

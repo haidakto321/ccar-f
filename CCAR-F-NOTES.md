@@ -89,67 +89,143 @@
 
 ### 🧠 10 luật vàng (rút ra từ 12 câu mẫu của guide) *(Claude)*
 
-| # | Luật | Nguồn |
-|---|---|---|
-| 1 | Cần **đảm bảo 100%** (tiền, xác minh danh tính, thứ tự bắt buộc) => **code / hook / gate**. Prompt và few-shot chỉ là **xác suất** | `[G 1.4, 1.5]` `[G Q1]` |
-| 2 | Đề hỏi "**first step**" / "most effective" => sửa **root cause** bằng cách **rẻ nhất, ít hạ tầng nhất**. Routing layer, classifier, model riêng = **over-engineered** | `[G Q2, Q3]` |
-| 3 | Root cause nằm **đúng chỗ log chỉ ra**. Agent downstream làm đúng việc được giao thì đừng đổ lỗi cho nó | `[G Q7]` |
-| 4 | Lỗi => trả **structured error** (loại lỗi, đã thử gì, partial result, hướng khác). ❌ "Operation failed" chung chung, ❌ trả rỗng như thành công, ❌ dừng cả workflow | `[G 2.2, 5.3]` `[G Q8]` |
-| 5 | **Least privilege**: mỗi agent chỉ có tool của vai trò nó. Cần thêm cho case phổ biến => cho **1 tool hẹp** (vd `verify_fact`), không cho cả bộ | `[G 2.3]` `[G Q9]` |
-| 6 | **Self-reported confidence** (1-10) và **sentiment** = **không đáng tin** để quyết định escalate. ⚠️ Khác: confidence **từng field / finding** đã **calibrate bằng labeled set** để route human review = ✅ (5.6, 6.5) | `[G 5.2]` `[G Q3]` `[G 4.6, 5.5]` |
-| 7 | Model **to hơn** / context **dài hơn** **không** sửa được attention dilution => **chia nhỏ pass** | `[G 1.6, 4.6]` `[G Q12]` |
-| 8 | Đáp án nhắc tới **flag / file / env var không tồn tại** => loại ngay (`CLAUDE_HEADLESS`, `--batch`, `.claude/config.json` với commands array) | `[G Q4, Q10]` |
-| 9 | **Batch API** chỉ cho việc **không chặn** (overnight, weekly). Việc **chặn merge** => sync API | `[G 4.5]` `[G Q11]` |
-| 10 | Lời dặn mơ hồ ("be conservative", "only high-confidence") **không** tăng precision => **tiêu chí cụ thể theo loại** + ví dụ | `[G 4.1]` |
+Mỗi luật: **dấu hiệu trong đề** => **chọn gì** => **vì sao**. Gặp từ khó => xem 📖 **Giải nghĩa từ khó** bên dưới.
+
+**1. Cần đúng 100% => dùng code chặn, không dùng prompt** `[G 1.4, 1.5]` `[G Q1]`
+- Dấu hiệu: tiền, xác minh danh tính, bước phải làm **theo thứ tự**, "guarantee", "must always", "agent bỏ qua bước X trong 12% case".
+- Chọn: **gate / hook** (xem 2.4): code làm cho tool sau **không chạy được** tới khi bước trước xong.
+- Vì sao: prompt, few-shot = model **thường** nghe theo, nhưng không phải **lúc nào** cũng nghe. Với tiền, sai 1 lần cũng không được.
+
+**2. "First step" => cách rẻ nhất mà sửa đúng gốc lỗi** `[G Q2, Q3]`
+- Dấu hiệu: "most effective **first step**", "proportionate first response".
+- Chọn: sửa đúng **nguyên nhân gốc** (root cause) bằng việc **nhỏ nhất**: viết lại tool description, thêm tiêu chí rõ + ví dụ vào prompt.
+- Loại: xây **hệ thống mới** (routing layer, classifier, model riêng, đổi sang model to hơn) khi cách rẻ **chưa thử**. Guide gọi là **over-engineered** (làm to hơn mức cần). Xem 🧭 Routing layer / classifier bên dưới.
+
+**3. Lỗi nằm đúng chỗ log chỉ ra, đừng đổ cho agent phía sau** `[G Q7]`
+- Dấu hiệu: đề cho log từng bước. Vd report về "AI trong creative industries" chỉ nói về visual art, log cho thấy coordinator chỉ giao 3 chủ đề con đều là visual art.
+- Chọn: sửa ở **chỗ sai đầu tiên** trong log (vd coordinator **chia việc quá hẹp**).
+- Loại: sửa agent phía sau (search, synthesis) khi nó **làm đúng** phần được giao. Đầu vào thiếu thì đầu ra thiếu, không phải lỗi của nó.
+
+**4. Báo lỗi phải đủ thông tin: không im lặng, không dừng hết** `[G 2.2, 5.3]` `[G Q8]`
+- Chọn: trả **structured error** (lỗi có các field rõ): loại lỗi (timeout? không có quyền?), đã thử gì, kết quả **có được một phần** (partial result), hướng khác có thể thử. Coordinator đọc rồi tự quyết: thử lại, đổi cách, hay đi tiếp với phần đã có.
+- Loại: ❌ chỉ ghi "Operation failed" (coordinator không biết làm gì tiếp). ❌ trả **rỗng** như thể thành công (giấu lỗi). ❌ **dừng cả workflow** chỉ vì 1 subagent lỗi.
+
+**5. Mỗi agent chỉ có tool cho việc của nó** `[G 2.3]` `[G Q9]`
+- Tên gọi: **least privilege** (quyền tối thiểu).
+- Dấu hiệu: agent dùng tool ngoài vai trò (synthesis agent tự đi search web). Hoặc 1 nhu cầu **hay gặp** (85% case chỉ cần check 1 fact đơn giản) phải vòng qua coordinator => chậm.
+- Chọn: cho thêm **1 tool hẹp** chỉ làm đúng việc đó (vd `verify_fact`). Case khó (15%) vẫn đi qua coordinator.
+- Loại: cho agent **cả bộ** tool của agent khác.
+
+**6. Điểm tự tin do agent tự chấm + cảm xúc khách: không dùng để quyết định escalate** `[G 5.2]` `[G Q3]` `[G 4.6, 5.5]`
+- Loại: "agent tự chấm 1-10, dưới ngưỡng thì chuyển người" (con số không khớp thực tế, agent **tự tin sai** đúng ở case khó). "Đo sentiment, khách bực thì escalate" (khách bực ≠ case khó).
+- ⚠️ Khác: confidence cho **từng field / từng finding**, đã **calibrate** (so với bộ dữ liệu có đáp án đúng), dùng để chọn **cái nào đưa người xem lại** = ✅ (5.6, 6.5).
+
+**7. Model to hơn / context dài hơn không sửa được việc review quá nhiều thứ 1 lần** `[G 1.6, 4.6]` `[G Q12]`
+- Dấu hiệu: review 14 file trong 1 lượt => file kỹ file sơ sài, sót bug rõ, cùng 1 kiểu code chỗ khen chỗ chê.
+- Nguyên nhân: **attention dilution** (sự chú ý bị chia mỏng, xem 5.6). Context lớn hơn = **chứa** được nhiều hơn, không = **chú ý** kỹ hơn.
+- Chọn: **chia pass**: 1 lượt cho từng file + 1 lượt riêng xem liên kết giữa các file.
+
+**8. Đáp án có flag / file / env var không tồn tại => loại ngay** `[G Q4, Q10]`
+- Đồ bịa hay gặp: `CLAUDE_HEADLESS`, `--batch`, `.claude/config.json` có mảng commands.
+- Đồ thật: `claude -p`, `--output-format json`, `--json-schema`, `.claude/commands/`, `.claude/rules/`, `.mcp.json`.
+
+**9. Batch API chỉ dùng cho việc không ai ngồi chờ** `[G 4.5]` `[G Q11]`
+- Batch = rẻ 50%, nhưng có thể **tới 24 giờ** mới xong, **không cam kết** thời gian.
+- Hợp: report chạy đêm (overnight), audit hằng tuần (weekly). Chậm vài giờ không ai bị ảnh hưởng.
+- Không hợp: **pre-merge check** (dev phải đợi check pass mới merge PR được, xem 5.5) => **sync API** (gọi bình thường, trả lời ngay).
+
+**10. Lời dặn mơ hồ không làm bớt báo sai => viết tiêu chí cụ thể** `[G 4.1]`
+- Loại: "be conservative", "only report high-confidence findings" (model không biết "cẩn thận" cụ thể là sao).
+- Chọn: ghi rõ **báo gì / bỏ qua gì** cho từng loại lỗi + **ví dụ code** cho từng mức severity.
+- Mục tiêu: tăng **precision** (trong số lỗi báo ra, bao nhiêu % là lỗi thật). Báo sai nhiều (**false positive**) => dev mất niềm tin cả những cảnh báo đúng.
+
+🧭 **Routing layer / classifier là gì?** (luật 2) *(Claude)*
+- **Routing layer** = code thường chạy **trước** model mỗi lượt, đọc message rồi quyết định đi đâu (tool / agent / prompt nào), thường bằng **keyword / regex**. Vd Q2 C: thấy "order #12345" => chọn sẵn `lookup_order`.
+- **Classifier** = **model riêng** (ML hoặc thêm 1 LLM call) xếp input vào nhãn. Cần **labeled data**, train, host, monitor. Vd Q3 C: model train trên ticket cũ đoán "có cần escalate?". Q1 D "routing classifier" = đoán loại request => chỉ bật tool cho loại đó.
+- Vì sao sai: tốn công (build, data, bảo trì) + thường **không chạm root cause**. Q1: giải quyết tool **có sẵn**, không phải **thứ tự**. Q2: over-engineered, **bỏ qua khả năng hiểu ngôn ngữ của LLM**, keyword dễ vỡ. Q3: cần data + hạ tầng ML khi **chưa thử prompt**.
+- ⚠️ Chữ "routing" **không phải** lúc nào cũng sai: coordinator tự chọn subagent `[G 1.2]`, route extraction confidence thấp sang người review `[G 4.6, 5.5]`, case phức tạp đi qua coordinator `[G 2.3]` = ✅. Cờ đỏ = **hệ thống riêng mới** khi **cách rẻ chưa thử**. Đề nói "đã sửa prompt / description mà vẫn lỗi" => hạ tầng có thể thành đúng.
+- Chữ bẫy: "trained on historical", "detected keywords", "pre-selects", "separate model", "sentiment analysis".
 
 ### 🔑 Từ điển "chữ trong đề => đáp án" *(Claude, gom từ guide)*
 
-| Chữ trong đề | Nghĩa | => Thường là |
+| Chữ trong đề | Nghĩa (tình huống là gì) | => Thường chọn (và vì sao) |
 |---|---|---|
-| **guaranteed / must always / compliance / financial** | phải đúng 100% | **hook / programmatic prerequisite** (không phải prompt) |
-| agent **skips** a required step X% of the time | bỏ qua bước bắt buộc | **gate chặn tool sau** tới khi tool trước trả kết quả |
-| **most effective first step** | bước đầu hiệu quả nhất | sửa nhỏ nhất đúng root cause (vd **viết lại tool description**) |
-| picks the **wrong tool**, tools have **minimal / similar descriptions** | chọn nhầm tool | **mở rộng description**: input format, ví dụ query, edge case, khi nào dùng tool khác |
-| agent has **18 tools** / too many tools | quá nhiều tool | **giảm còn 4-5**, chia theo vai trò |
-| must call a tool, **not return text** | bắt buộc gọi tool | `tool_choice: "any"` |
-| tool X must run **first** | phải chạy trước | forced `tool_choice: {"type":"tool","name":"X"}` |
-| **job hangs** waiting for input in CI | treo chờ input | `claude -p` (`--print`) |
-| **machine-parseable** findings, inline PR comments | output máy đọc được | `--output-format json` + `--json-schema` |
-| available to **every developer** who clones the repo | dùng chung cả team | file trong **repo**: `.claude/commands/`, `.claude/skills/`, `.mcp.json`, `CLAUDE.md` |
-| **personal / experimental** | của riêng mình | `~/.claude/...`, `~/.claude.json` |
-| **new team member** doesn't get the instructions | người mới không nhận rule | rule đang nằm ở **user-level** `~/.claude/CLAUDE.md` => chuyển lên **project-level** |
-| test files **spread throughout** the codebase | file nằm rải rác | `.claude/rules/*.md` + `paths:` glob (vd `**/*.test.tsx`) |
-| skill output is **verbose**, **pollutes** main conversation | output dài làm bẩn context | `context: fork` |
-| restructure / migrate **dozens of files**, **architectural** decisions | thay đổi lớn | **plan mode** |
-| **single-file** fix, clear stack trace | sửa nhỏ rõ ràng | **direct execution** |
-| **cost** savings + **overnight / weekly** | rẻ + không gấp | **Message Batches API** (50% rẻ hơn, tới 24h) |
-| **blocking** / pre-merge / developer waits | phải chờ | **sync API** (không batch) |
-| **correlate** batch requests and results | ghép request - response | `custom_id` |
-| JSON **syntax** errors | lỗi cú pháp JSON | **tool_use + JSON schema** (strict) |
-| totals **don't sum**, value in **wrong field** | lỗi **ngữ nghĩa** | validation + **retry kèm lỗi cụ thể** (schema không bắt được) |
-| model **fabricates** values for missing fields | bịa giá trị | field **optional / nullable** |
-| info **only in another document** not provided | thông tin không có trong input | retry **vô ích** => đánh dấu thiếu / người xem |
-| **inconsistent format** of output | format lúc thế này lúc thế khác | **few-shot** (2-4 ví dụ) |
-| too many **false positives**, developers **lose trust** | báo sai nhiều | **tiêu chí cụ thể** + **tạm tắt category báo sai nhiều** |
-| **14 files**, superficial / **contradictory** review | review nhiều file kém | **per-file pass + cross-file integration pass** |
-| same session **reviews its own** code | tự review | **instance độc lập** (không có reasoning context cũ) |
-| subagent **doesn't know** earlier findings | subagent thiếu context | **đưa thẳng findings vào prompt** của subagent (không tự kế thừa) |
-| report covers only **part of the topic** | thiếu mảng | coordinator **chia task quá hẹp** |
-| timeout in a subagent | subagent lỗi | **structured error context** về coordinator |
-| customer **asks for a human** | khách đòi người | **escalate ngay**, không điều tra trước |
-| policy is **silent / ambiguous** (vd price match **đối thủ**) | chính sách không nói tới | **escalate** |
-| tool returns **multiple customers** | nhiều kết quả trùng | **hỏi thêm identifier**, không đoán |
-| summary **loses numbers / dates** | tóm tắt mất số liệu | **"case facts" block** giữ riêng, ngoài phần tóm tắt |
-| findings in the **middle** get missed | bỏ sót phần giữa | **lost in the middle** => đưa tóm tắt lên **đầu**, có section header |
-| **97% overall** accuracy, ready to automate? | tổng thể cao | **chia theo loại tài liệu / field**, **stratified sampling** |
-| two credible sources **conflict** | 2 nguồn mâu thuẫn | **giữ cả 2 + ghi nguồn**, không tự chọn 1 |
-| long session, answers get **vague / "typical patterns"** | context xuống cấp | **scratchpad file**, subagent, `/compact` |
-| resume but **files changed** | file đã đổi | báo cho agent **file nào đổi**; nếu tool result cũ quá => **session mới + summary** |
+| **guaranteed / must always / compliance / financial** | phải đúng **100%**, sai 1 lần cũng không được | **code chặn**: hook / gate (programmatic prerequisite). ❌ prompt, few-shot (chỉ là xác suất) |
+| agent **skips** a required step X% of the time | agent **bỏ qua** bước bắt buộc trong X% case (vd không gọi `get_customer` trước khi refund) | **gate**: code chặn tool sau (`process_refund`) tới khi tool trước (`get_customer`) trả kết quả |
+| **most effective first step** | hỏi bước **đầu tiên** nên làm | việc **nhỏ nhất** mà sửa đúng gốc lỗi (vd **viết lại tool description**). ❌ xây hệ thống mới |
+| picks the **wrong tool**, tools have **minimal / similar descriptions** | chọn nhầm tool vì description **sơ sài / giống nhau** | **viết description đầy đủ hơn**: input nhận gì, ví dụ câu hỏi, edge case, khi nào dùng tool kia |
+| agent has **18 tools** / too many tools | agent có **quá nhiều** tool => chọn kém | **giảm còn 4-5** tool mỗi agent, chia tool theo vai trò |
+| must call a tool, **not return conversational text** (vd extraction có **nhiều** extract tool, **không biết trước** loại tài liệu) | ở **request này**, câu trả lời **phải là 1 tool call** (để lấy JSON đúng schema), không được trả lời bằng chữ | `tool_choice: "any"` = **bắt buộc** gọi tool, nhưng model **tự chọn** tool nào (vd `extract_invoice` hay `extract_receipt` tùy tài liệu). ⚠️ Không có nghĩa "agent lượt nào cũng phải gọi tool": chat bình thường => `auto` (lab 2: đặt `any` thì "Thanks, bye!" cũng bị gọi `escalate_to_human`) (3.3) |
+| tool X must run **first** (vd `extract_metadata` trước các bước enrichment) | biết rõ **request đầu** phải gọi **đúng tool X**, không phải tool khác | forced `tool_choice: {"type":"tool","name":"X"}` = **bắt buộc** gọi **đúng X**. Chỉ đặt cho **request đó**. Các bước sau chạy ở **request sau** (thường lại để `auto`) (3.3) |
+| **job hangs** waiting for input in CI | Claude Code chạy trong CI mà job **đứng im** chờ người gõ | `claude -p` (`--print`) = chạy 1 lần không tương tác, in kết quả rồi thoát |
+| **machine-parseable** findings, inline PR comments | kết quả phải để **code đọc** được (vd tự post comment vào PR) | `--output-format json` + `--json-schema` (output JSON đúng schema) |
+| available to **every developer** who clones the repo | **ai clone repo** cũng phải có | đặt file **trong repo** (commit vào git): `.claude/commands/`, `.claude/skills/`, `.mcp.json`, `CLAUDE.md` |
+| **personal / experimental** | chỉ **mình** dùng, đang thử | đặt trong **home**: `~/.claude/...`, `~/.claude.json` (không vào git) |
+| **new team member** doesn't get the instructions | người mới **không nhận được** rule mà người cũ có | rule đang nằm ở `~/.claude/CLAUDE.md` (chỉ có trên máy người cũ) => chuyển vào `CLAUDE.md` **trong repo** |
+| test files **spread throughout** the codebase | file cùng loại (test) nằm **rải rác** nhiều thư mục | `.claude/rules/*.md` + `paths:` glob (vd `**/*.test.tsx`): rule **tự load** khi sửa file khớp |
+| skill output is **verbose**, **pollutes** main conversation | skill in ra **quá dài**, làm rối hội thoại chính | `context: fork` trong SKILL.md: skill chạy ở **context riêng**, chỉ trả kết quả gọn về |
+| restructure / migrate **dozens of files**, **architectural** decisions | thay đổi **lớn**: nhiều file, quyết định kiến trúc | **plan mode**: điều tra + lên kế hoạch trước khi sửa |
+| **single-file** fix, clear stack trace | sửa **nhỏ, rõ**: 1 file, có stack trace | **direct execution**: làm luôn |
+| **cost** savings + **overnight / weekly** | muốn **rẻ**, kết quả **không gấp** | **Message Batches API**: rẻ 50%, có thể tới 24h mới xong |
+| **blocking** / pre-merge / developer waits | có người **ngồi chờ** kết quả (dev đợi check pass mới merge được PR) | **sync API** (gọi bình thường, trả lời ngay). ❌ Batch |
+| **correlate** batch requests and results | ghép **kết quả** batch với **request** tương ứng | `custom_id`: tự đặt ID cho mỗi request, kết quả trả về kèm ID đó (thứ tự trả về không quan trọng) |
+| JSON **syntax** errors | JSON **hỏng cú pháp** (thiếu ngoặc, sai dấu phẩy) | **tool_use + JSON schema** (strict): output luôn đúng cú pháp |
+| totals **don't sum**, value in **wrong field** | JSON đúng cú pháp nhưng **nội dung sai** (cộng các dòng không ra tổng, giá trị nằm nhầm field) | **code kiểm tra** + **retry kèm lỗi cụ thể** (schema không bắt được loại lỗi này) |
+| model **fabricates** values for missing fields | model **bịa** giá trị cho field mà tài liệu không có | để field **optional / nullable**: được trả `null` thì model không cần bịa |
+| info **only in another document** not provided | thông tin **không có** trong tài liệu được đưa vào | retry **vô ích** (thử mấy lần cũng không có) => đánh dấu thiếu / đưa người xem |
+| **inconsistent format** of output | output lúc kiểu này lúc kiểu khác | **few-shot**: 2-4 ví dụ output mẫu |
+| too many **false positives**, developers **lose trust** | **báo lỗi sai** nhiều => dev mất niềm tin | **tiêu chí cụ thể** báo gì / bỏ qua gì + **tạm tắt** loại cảnh báo hay báo sai trong lúc sửa prompt |
+| **14 files**, superficial / **contradictory** review | review **nhiều file 1 lượt** => chỗ kỹ chỗ sơ sài, nhận xét mâu thuẫn | **1 lượt cho từng file** + **1 lượt** xem liên kết giữa các file |
+| same session **reviews its own** code | phiên vừa **viết code** tự **review** code đó | **phiên mới, độc lập** review (không nhớ lý luận cũ nên dám nghi ngờ) |
+| subagent **doesn't know** earlier findings | subagent **không biết** kết quả các bước trước | coordinator **chép thẳng findings vào prompt** giao việc (subagent không tự thấy hội thoại của coordinator) |
+| report covers only **part of the topic** | report **thiếu mảng** của chủ đề | coordinator **chia việc quá hẹp** (lỗi ở coordinator, không phải subagent) |
+| timeout in a subagent | 1 subagent **bị lỗi** (timeout) | subagent trả **structured error** (loại lỗi, đã thử gì, phần kết quả có được) về coordinator. ❌ trả rỗng, ❌ dừng hết |
+| customer **asks for a human** | khách **đòi gặp người** | **escalate ngay**, không điều tra trước |
+| policy is **silent / ambiguous** | chính sách **không nói tới** trường hợp này (vd đòi price-match giá **đối thủ**, policy chỉ nói giá của mình) | **escalate** |
+| tool returns **multiple customers** | tìm khách ra **nhiều người** khớp | **hỏi thêm** thông tin (email, SĐT). ❌ tự đoán 1 người |
+| summary **loses numbers / dates** | tóm tắt hội thoại dài làm **mất** số tiền, ngày | **case facts block**: khối dữ kiện giữ riêng, gửi kèm mọi prompt, không đem đi tóm tắt |
+| findings in the **middle** get missed | thông tin ở **giữa** input dài bị sót | **lost in the middle** => đưa key findings lên **đầu**, chia section header |
+| **97% overall** accuracy, ready to automate? | độ chính xác **tổng** cao, muốn bỏ bớt người kiểm tra | đo **riêng từng loại tài liệu + từng field** trước (con số tổng có thể che 1 loại kém), lấy mẫu kiểm tra **chia theo nhóm** (stratified sampling) |
+| two credible sources **conflict** | 2 nguồn uy tín **nói khác nhau** | **giữ cả 2** + ghi nguồn + ngày. ❌ tự chọn 1 |
+| long session, answers get **vague / "typical patterns"** | phiên dài, trả lời **chung chung** thay vì tên class cụ thể => context đã xuống cấp | ghi findings ra **scratchpad file**, giao câu hỏi cụ thể cho **subagent**, `/compact` |
+| resume but **files changed** | resume phiên cũ nhưng **file đã bị sửa** | báo agent **file nào đổi** để xem lại đúng chỗ. Đổi quá nhiều (tool result cũ sai hết) => **session mới + summary** |
+
+### 📖 Giải nghĩa từ khó *(Claude)*
+
+| Từ | Nghĩa đơn giản | Ví dụ |
+|---|---|---|
+| **root cause** | nguyên nhân **gốc**, không phải triệu chứng | chọn nhầm tool vì description sơ sài => gốc là description |
+| **over-engineered** | giải pháp **to / phức tạp hơn mức cần** | dựng classifier khi chưa thử sửa prompt |
+| **deterministic** vs **probabilistic** | **chắc chắn** (code, lần nào cũng giống nhau) vs **xác suất** (model thường làm đúng, không phải luôn luôn) | hook vs prompt |
+| **gate** / **programmatic prerequisite** | code **chặn** bước B tới khi bước A xong | chặn `process_refund` tới khi có verified customer ID |
+| **upstream / downstream** | bước / agent **phía trước** / **phía sau** trong luồng | coordinator là upstream của search agent |
+| **least privilege** | chỉ cho **vừa đủ** quyền / tool cần cho việc | synthesis agent không có web search |
+| **scoped tool** | tool **hẹp**, chỉ làm 1 việc | `verify_fact` thay vì cả bộ search |
+| **structured error** | lỗi trả về có field rõ (loại lỗi, retry được không, mô tả) | `{"errorCategory":"business","isRetryable":false}` |
+| **transient error** | lỗi **tạm thời**, thử lại có thể được | timeout, service down |
+| **partial result** | kết quả **có được một phần** trước khi lỗi | tìm được 3/5 nguồn |
+| **hub-and-spoke** | mô hình **trục - nan hoa**: subagent chỉ nói chuyện với coordinator, không nói thẳng với nhau | |
+| **provenance** | **nguồn gốc** của từng thông tin (URL, tài liệu, ngày) | câu nào lấy từ nguồn nào |
+| **stale** | **cũ, lỗi thời**, không còn đúng | tool result từ trước khi file bị sửa |
+| **inject** | **chèn** thông tin vào prompt / context | chèn summary vào session mới |
+| **instance độc lập** | 1 phiên Claude **mới**, không thấy hội thoại / lý luận cũ | phiên mới review code mà phiên cũ viết |
+| **pass** | **1 lượt** cho model xử lý dữ liệu | per-file pass = mỗi file 1 lượt |
+| **false positive** / **precision** | báo lỗi mà **thật ra không lỗi** / % lỗi báo ra là lỗi thật | |
+| **calibrate** + **labeled validation set** | so điểm confidence với **bộ dữ liệu đã có đáp án đúng**: mỗi mức điểm thật sự đúng bao nhiêu %, rồi đặt ngưỡng | model ghi 0.9 nhưng chỉ đúng 70% => điểm chưa đáng tin |
+| **stratified sampling** | lấy mẫu kiểm tra **chia theo nhóm** (nhóm nào cũng có mẫu), không bốc ngẫu nhiên chung | loại viết tay chỉ 5% vẫn được lấy đủ mẫu |
+| **progressive summarization** | tóm tắt hội thoại dài **dần dần**, mỗi lần tóm lại bản tóm cũ => dễ mất số liệu | |
+| **case facts block** | khối **dữ kiện cố định** (số tiền, ngày, mã đơn), gửi kèm **mọi** prompt, **không** đem đi tóm tắt | |
+| **scratchpad file** | file **nháp** agent ghi findings để đọc lại sau | |
+| **manifest** | file ghi **trạng thái** công việc, dùng để chạy tiếp sau crash | |
+| **SLA** | **cam kết thời gian** trả kết quả | "có kết quả trong 30 giờ" |
+| **sync API** | gọi Messages API **bình thường**, chờ trả lời ngay | ngược với Batch |
+| **escalate** | chuyển case cho **người thật** | |
+| **first-contact resolution (FCR)** | % case xong **ngay lần liên hệ đầu**, không phải chuyển người / quay lại | |
 
 💡 **Mẹo đọc đề** (giống AIF, chỉnh cho bài này)
 1. **Đọc câu CUỐI trước**: "most effective **first step**", "most **maintainable**", "**guarantee**", "**reduce overhead while maintaining reliability**". Chữ đó quyết định đáp án.
-2. **Đọc số liệu trong đề**: "12% of cases", "85% simple / 15% complex", "40% latency". Số liệu thường chỉ thẳng vào đáp án (vd 85/15 => tool hẹp cho 85%, case khó vẫn qua coordinator).
-3. **Đáp án sai thường là**: (a) **prompt** khi cần **đảm bảo**, (b) **hạ tầng mới** (classifier, routing layer, model to hơn) khi chưa thử cách đơn giản, (c) **đổ việc cho developer** ("bắt dev chia PR nhỏ"), (d) **feature không tồn tại**.
+2. **Đọc số liệu trong đề**: "12% of cases", "85% simple / 15% complex", "40% latency". Số liệu thường chỉ thẳng vào đáp án. Vd "85% chỉ cần check fact đơn giản, 15% cần điều tra sâu" => cho 1 tool hẹp lo 85% case dễ, 15% case khó vẫn đi qua coordinator (Q9).
+3. **Đáp án sai thường là**: (a) **prompt** khi cần **đảm bảo 100%**, (b) **hệ thống mới** (classifier, routing layer, model to hơn) khi chưa thử cách đơn giản, (c) **đẩy việc cho developer** (vd "bắt dev chia PR nhỏ" thay vì sửa hệ thống), (d) **feature không tồn tại**.
 4. **Multiple response**: đề ghi chọn mấy => chọn **đủ** số đó.
 5. **Kiểm tra cả 2 yêu cầu** nếu đề có 2 ("reduce latency" **và** "maintain reliability").
 
@@ -275,6 +351,18 @@ Thêm: agent nói "không thấy ngày hôm nay" => thiếu thông tin trong con
 
 - **Programmatic enforcement** (hook, prerequisite gate) vs **prompt guidance**. Khi cần đúng tuyệt đối (xác minh danh tính trước giao dịch tiền) => prompt **luôn có tỉ lệ lỗi > 0**.
 - Ví dụ chuẩn: **chặn** `lookup_order` / `process_refund` tới khi `get_customer` trả về **verified customer ID** `[G Q1]`.
+- **Code vs gate vs hook** *(Claude)*: không phải 3 lựa chọn khác nhau, mà là 3 tầng:
+
+| Từ | Là gì | Tầng |
+|---|---|---|
+| **Code** (deterministic) | mọi logic chạy **ngoài model** | cả họ |
+| **Gate** (programmatic prerequisite) | 1 **luật**: "bước B **bị chặn** tới khi bước A xong" | **cái gì** cần ép |
+| **Hook** (PreToolUse / PostToolUse) | tính năng của **framework** (Agent SDK, Claude Code): chạy hàm của bạn tại 1 thời điểm cố định cho mọi tool call khớp | **ở đâu / cách nào** gắn check |
+
+- Cùng 1 gate, 3 chỗ build: (1) **trong tool** (`process_refund` tự check `verified_customer_id`), (2) **trong agent loop** (check trước khi chạy `tool_use`), (3) **PreToolUse hook** trả `permissionDecision: "deny"` + lý do. Cả 3: model nhận lỗi => tự gọi `get_customer` trước, **không lách được**.
+- Hook hợp khi: check **tập trung** cho nhiều tool, hoặc tool **không sửa được** (MCP server bên thứ 3). PostToolUse hook **sửa kết quả** (chuẩn hóa ngày) = hook nhưng **không phải** gate.
+- 🏦 Ngân hàng: luật "kiểm ID trước khi rút tiền" = **gate**. Phần mềm quầy không mở màn hình rút tới khi quét ID = gate **trong tool**. Bảo vệ ở cửa kiểm mọi người = **hook**. Quản lý dặn "nhớ kiểm ID" = **prompt** (đa số lần đúng, không 100%).
+- 🧭 Thi: gate và hook đều **đúng** (cùng họ deterministic), không cần phân biệt. Sai = prompt, few-shot, routing classifier. Chữ báo hiệu: "guarantee", "must always", "X% skip a step", tiền, danh tính.
 - Request nhiều vấn đề => **tách thành từng item**, điều tra **song song** với context chung, rồi **gộp** thành 1 câu trả lời.
 - **Handoff khi escalate**: người nhận **không đọc được transcript** => gửi summary có cấu trúc: customer ID, root cause, số tiền refund, đề xuất hành động.
 
@@ -344,13 +432,13 @@ Thêm: agent nói "không thấy ngày hôm nay" => thiếu thông tin trong con
 - **Scoped access**: mỗi agent chỉ có tool cho vai trò của nó. Cho thêm **1 tool hẹp** cho nhu cầu **hay gặp** (`verify_fact` cho synthesis), case phức tạp vẫn qua coordinator `[G Q9]`.
 - Thay tool chung bằng tool **có ràng buộc**: `fetch_url` => `load_document` (kiểm tra URL là tài liệu hợp lệ).
 
-| `tool_choice` | Nghĩa |
-|---|---|
-| `"auto"` | model **có thể** trả text thay vì gọi tool |
-| `"any"` | **bắt buộc** gọi tool, model tự chọn tool nào |
-| `{"type":"tool","name":"X"}` | **bắt buộc** gọi đúng tool **X** (vd ép `extract_metadata` chạy trước, các bước sau xử lý ở turn sau) |
+| `tool_choice` | Nghĩa | Dùng khi (theo guide) |
+|---|---|---|
+| `"auto"` (mặc định) | model **tự quyết**: gọi tool hoặc trả lời bằng chữ | chat / agent bình thường |
+| `"any"` | **bắt buộc** gọi tool, model **tự chọn** tool nào | extraction có **nhiều** extract tool (mỗi loại tài liệu 1 schema), **không biết trước** tài liệu loại nào => model phải trả JSON qua 1 trong các tool, không được trả lời bằng chữ `[G 2.3, 4.3]` |
+| `{"type":"tool","name":"X"}` (forced) | **bắt buộc** gọi **đúng** tool **X** | biết chắc bước đầu phải là X: ép `extract_metadata` chạy **trước**, các bước enrichment chạy ở **request sau** `[G 2.3, 4.3]` |
 
-🧭 `any` / forced **chỉ khi thật sự cần 1 tool call** (vd **đảm bảo structured output**: lab 5, lab 6). Hội thoại thường => `auto`. *(Claude)*
+🧭 `tool_choice` đặt **cho từng request**, không phải cho cả agent. `any` / forced **chỉ khi request đó bắt buộc phải ra tool call** (vd lấy structured output: lab 5, lab 6). Hội thoại thường => `auto`. *(Claude)*
 
 ⚠️ **API thật** (claude-api reference, 2026-11): model mới nhất (Opus 5.5, Sonnet 5.5, Fable 5.1 / 5.2) **trả lỗi 400** với `any` / forced => dùng `auto` + `strict: true` hoặc structured outputs. Haiku 5.5 vẫn chạy (lab 2). **Thi theo guide**: `any` / forced vẫn là đáp án đúng trong scenario *(Claude)*.
 - Với `any` / forced, Claude **không viết câu giải thích** trước tool call `[W]`.
@@ -418,7 +506,21 @@ Thêm từ lab 2: tên tool rõ (`get_customer` vs `search_customers`) + câu h�
 
 ### 4.2 Commands + Skills `[G 3.2]`
 
-Frontmatter của SKILL.md:
+3 field này nằm **ngay trong file `SKILL.md`**, ở phần **frontmatter** (khối YAML giữa 2 dòng `---` ở **đầu file**). **Không** phải trong settings.json. Mỗi skill tự khai báo cho riêng nó *(Claude)*:
+
+```markdown
+<!-- .claude/skills/codebase-scan/SKILL.md -->
+---
+name: codebase-scan
+description: Scan a folder and summarize its architecture
+context: fork
+allowed-tools: Read, Grep, Glob
+argument-hint: "[folder to scan]"
+---
+Scan $ARGUMENTS, then return a 10-line summary of the main modules.
+```
+
+Kết quả: skill chạy trong **sub-agent riêng** (đọc 100 file cũng không làm đầy hội thoại chính), chỉ được dùng Read / Grep / Glob, và gợi ý "[folder to scan]" khi dev gõ `/codebase-scan` mà không ghi thư mục. Hội thoại chính chỉ nhận lại **bản tóm tắt 10 dòng**.
 
 | Field | Làm gì |
 |---|---|
@@ -439,6 +541,8 @@ Test files: use React Testing Library, no snapshot tests.
 
 - Chỉ load khi sửa file khớp glob => **bớt context thừa, bớt token**.
 - File cùng loại nằm **rải rác nhiều thư mục** => rules + glob **tốt hơn** CLAUDE.md theo thư mục `[G Q6]`.
+- ⚠️ `paths:` **không phải** để chỉ cho Claude "test nằm ở đâu" *(Claude)*. Nó là **điều kiện load rule**: "khi Claude đọc / sửa file nào khớp pattern này thì mới nạp rule này vào context". Ví dụ trên: Claude sửa `src/cart/Cart.test.tsx` hay `lib/x/y.test.tsx` (thư mục nào cũng được) => rule "dùng React Testing Library" **tự** được nạp. Sửa `Cart.tsx` => không nạp. `**/` = mọi thư mục, mọi độ sâu.
+- Vì sao thắng CLAUDE.md thư mục: test nằm trong **50 thư mục** khác nhau => phải chép rule vào 50 file `CLAUDE.md`. 1 file rule + glob là phủ hết.
 
 🧭 Sample Q6: ❌ gộp hết vào root CLAUDE.md (dựa vào model tự đoán), ❌ skills (phải gọi thủ công, không tự động), ❌ CLAUDE.md mỗi thư mục (không phủ được file rải rác) => ✅ `.claude/rules/` + glob.
 
@@ -543,6 +647,8 @@ claude -p "Review this PR for bugs and security issues" \
 | Lấy kết quả | **polling** tới khi batch xong |
 
 - Hợp: overnight report, weekly audit, nightly test generation. Không hợp: **pre-merge check** (chặn dev).
+- **"Blocking" / "chặn merge" nghĩa là gì** *(Claude)*: **pre-merge check** = bước kiểm tra tự động (CI review bằng Claude) chạy khi dev mở PR. Repo cấu hình "check phải **pass** thì nút **Merge** mới mở". Nên dev **bị chặn**, phải **ngồi chờ** kết quả. Gửi qua Batch => có thể chờ **tới 24 giờ** => không chấp nhận được. Report overnight thì khác: chạy đêm, sáng mới đọc, chậm vài giờ **không ai bị chặn** => Batch hợp.
+- 🧭 Mẹo nhớ: hỏi "**có ai đang ngồi chờ kết quả không?**". Có => **sync API** (Messages API gọi thường). Không => **Batch** (rẻ 50%). ❌ "batch + polling" hay "batch + timeout fallback sang real-time" cho việc chặn: batch **không có SLA**, "thường nhanh" chưa đủ `[G Q11]`.
 - **Tính tần suất gửi theo SLA**: SLA 30 giờ, batch tới 24 giờ => gửi theo **cửa sổ 4 giờ** (đợi tối đa 4h + xử lý 24h = 28h < 30h, còn dư) *(Claude giải thích số của guide)*.
 - Lỗi: gửi lại **chỉ request lỗi** (theo `custom_id`), có chỉnh (vd **chia nhỏ** tài liệu vượt context).
 - **Thử prompt trên sample nhỏ trước** khi chạy batch lớn => giảm chi phí gửi lại.
@@ -552,6 +658,7 @@ claude -p "Review this PR for bugs and security issues" \
 - **Self-review yếu**: model còn giữ reasoning lúc sinh code => ít nghi ngờ quyết định của mình.
 - **Instance độc lập** (không có context cũ) bắt lỗi tốt hơn self-review hoặc extended thinking.
 - **Multi-pass**: per-file (lỗi local) + integration pass (data flow giữa file) => tránh **attention dilution** và feedback **mâu thuẫn**.
+- **Attention dilution** (chú ý bị pha loãng) *(Claude)*: đưa **quá nhiều thứ cùng lúc** (14 file 1 pass) => sự chú ý của model **chia mỏng** => file này kỹ, file kia sơ sài, sót bug rõ, cùng 1 pattern chỗ khen chỗ chê. Context lớn hơn = **chứa được** nhiều hơn, **không** = chú ý kỹ hơn => model to / context dài **không sửa** `[G Q12]`. Khác **lost in the middle** (6.1): cái đó do **vị trí** (phần giữa input dài), cái này do **khối lượng**.
 - Verification pass: model ghi **confidence cho từng finding** => routing review (con số phải được **calibrate**, xem 6.5).
 
 🧭 Sample Q12 `[G Q12]`: 14 file review kém => ✅ chia pass. ❌ bắt dev chia PR (đẩy việc cho người). ❌ model context lớn hơn (không sửa attention). ❌ chạy 3 lần lấy đa số (**bỏ sót** bug thật chỉ thấy thỉnh thoảng).
@@ -569,6 +676,37 @@ claude -p "Review this PR for bugs and security issues" \
 | Tool result **dài** (40+ field, chỉ cần 5) chiếm token | **cắt bớt**, chỉ giữ field liên quan **trước khi** đưa vào context |
 | Multi-issue session | lưu dữ liệu từng issue (order ID, số tiền, status) vào **lớp context riêng** |
 | Agent sau có ít context | agent trước trả **structured data** (key facts, citation, relevance score), không trả văn dài + reasoning |
+
+**Case facts block: ví dụ cụ thể** *(Claude)*
+
+- **Vấn đề**: chat support dài 40 lượt, context sắp đầy => app cho model **tóm tắt** các lượt cũ. Mỗi lần đầy lại tóm tắt tiếp, **gồm cả bản tóm tắt cũ** (= "progressive", giống photocopy của bản photocopy: mỗi lần mờ thêm). Model viết lại bằng lời của nó => số bị làm tròn hoặc mất:
+  - Thật: đơn **#A123, $89.99, giao 03/11**. Đơn **#B456 giao trễ 5 ngày**. Khách muốn refund **về thẻ**, **không** lấy store credit.
+  - Sau vài lần tóm tắt: "Khách không hài lòng về **vài đơn hàng** gần đây, muốn được **hoàn tiền**."
+  - Hậu quả: agent refund sai số tiền, sai đơn, hoặc trả store credit => khách bực hơn.
+- **Cách sửa**: ngay khi dữ kiện xuất hiện, **trích** nó ra (bằng code, hoặc 1 bước extraction của model) vào 1 khối riêng. Khối này **chép nguyên văn**, chỉ cập nhật khi có dữ kiện mới, **không bao giờ** đem đi tóm tắt, và **gửi kèm mọi request**. Chỉ phần nói chuyện mới bị tóm tắt:
+
+```text
+<case_facts>                      <- giữ nguyên văn, gửi mọi request
+customer_id: C-1042 (verified)
+order #A123: $89.99, delivered 2026-11-03, refund requested
+order #B456: $45.00, delivered 5 days late
+customer wants: refund to original card, NOT store credit
+</case_facts>
+
+<conversation_summary>            <- phần này được phép tóm tắt
+Customer is frustrated about two delayed orders...
+</conversation_summary>
+
+[vài lượt chat gần nhất, giữ nguyên]
+```
+
+- **Agent đoán cái gì là case fact?** Không *(Claude)*. **Bạn (người thiết kế)** quyết định trước **loại** dữ kiện nào quan trọng cho domain, dạng schema cố định (support: customer ID, mã đơn, số tiền, ngày, status, mong muốn khách nói ra; guide gọi là "transactional facts"). Giá trị được điền từ 2 nguồn:
+  1. **Tool result** (chắc nhất): `get_customer` trả `customer_id`, `lookup_order` trả số tiền / ngày / status => **code** chép thẳng field vào block, không có model, không đoán.
+  2. **Lời khách nói** ("refund về thẻ nhé"): model điền vào **schema cố định** (tool_use + JSON schema, field nullable, khách không nói => `null`). Model chỉ điền ô có sẵn, không tự chọn "cái gì quan trọng" => hẹp hơn nhiều so với "tóm tắt mọi thứ".
+  - Giống tờ khai ở bệnh viện có sẵn ô "Dị ứng: ___": **tờ khai** quyết định cái gì phải ghi, y tá chỉ điền.
+  - Thi chỉ cần nhận ra pattern, không hỏi cách build.
+- 🏥 Giống hồ sơ bệnh án: "**Dị ứng: penicillin**" ghi riêng ở đầu hồ sơ, không chôn trong phần ghi chú tóm tắt các lần khám. Bác sĩ nào mở hồ sơ cũng thấy ngay.
+- 🧭 Đề: "summary làm mất số tiền / ngày / kỳ vọng của khách" => **case facts block**. ❌ "tóm tắt kỹ hơn", ❌ "dùng model context dài hơn".
 
 - API là **stateless**: mỗi request phải gửi **đủ lịch sử hội thoại** *(Claude: đây là ý "passing complete conversation history")*.
 

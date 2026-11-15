@@ -24,7 +24,10 @@ Suggested order: week 1 = lab 0 + labs 1-3, week 2 = labs 4-6, week 3 = lab 7 + 
 ## Setup (one time)
 
 You need Python 3.10+ (you have 3.12) and an API key from [console.anthropic.com](https://console.anthropic.com).
-The API is billed separately from a claude.ai plan. With the default model (Haiku 5.5) every lab costs cents.
+The API is billed separately from a claude.ai plan: **Pro includes no API credits** (Max, Ultra and Team include
+monthly API credits). Ask your company first, it may already have a Console workspace or credits. Otherwise buy the
+smallest top-up, turn auto-reload off and set a spend limit. With the default model (Haiku 5.5) every lab costs cents.
+Lab 0 needs no key: it runs on your Pro login.
 
 Git Bash, from the repo root:
 
@@ -39,6 +42,12 @@ cp .env.example .env
 PowerShell: same, but activate with `.venv\Scripts\Activate.ps1` and copy with `Copy-Item .env.example .env`.
 
 Then open `labs/.env` and paste your key after `ANTHROPIC_API_KEY=`. **`labs/.env` is git-ignored. Never commit it** (this repo is on GitHub).
+
+> ⚠️ **Keep the key in `labs/.env` only. Never set `ANTHROPIC_API_KEY` globally** (Windows environment variables,
+> `~/.bashrc`, PowerShell profile). When it is set, Claude Code uses the key instead of your Pro login and you pay
+> API prices for your normal Claude Code work. The labs load `labs/.env` inside the Python process only, so your
+> terminal and Claude Code stay on Pro. Check with `echo $ANTHROPIC_API_KEY` (Git Bash) or
+> `$env:ANTHROPIC_API_KEY` (PowerShell): it should print nothing.
 
 Run every lab **from the `labs` folder**, as a module:
 

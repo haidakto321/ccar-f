@@ -39,7 +39,7 @@
 3. Root cause ở **đúng chỗ log chỉ ra** (vd coordinator chia task hẹp), đừng đổ cho agent downstream
 4. Lỗi => **structured error** (type, đã thử gì, partial, hướng khác). ❌ generic · ❌ rỗng như thành công · ❌ dừng cả workflow
 5. **Least privilege** tool. Case phổ biến => **1 tool hẹp** (`verify_fact`)
-6. **Sentiment** + **self-reported confidence** = không đáng tin
+6. **Sentiment** + **self-reported confidence** (1-10) = không đáng tin **để escalate** (Q3). Confidence **từng field / finding + calibrate bằng labeled set** => route review ✅ (5.6, 6.5)
 7. Model to / context dài **không** sửa attention dilution => **chia pass**
 8. `CLAUDE_HEADLESS`, `--batch`, `.claude/config.json` commands = **không tồn tại**
 9. **Batch** chỉ cho việc **không chặn**
@@ -60,8 +60,9 @@
 | **Resume** vs **session mới + summary** | context còn đúng => `--resume <name>`. Tool result **stale** => session mới + summary (2.7) |
 | **fork_session** | so sánh **2 hướng** từ 1 bản phân tích chung (2.7) |
 | Subagent **context** | **không** kế thừa => đưa findings **thẳng vào prompt**. Coordinator cần `"Task"` trong `allowedTools` (2.3) |
+| `allowedTools` vs `AgentDefinition.tools` | Coordinator **không gọi được** subagent => thiếu `"Task"` trong `allowedTools`. Subagent **dùng tool quá tay** => thu hẹp `tools` trong `AgentDefinition` (bỏ trống = kế thừa **hết**, least privilege). SDK thật: `allowedTools` = list **auto-approve**, không xóa tool khác => subagent **có thể** có tool coordinator không list (vd Bash) (2.3) |
 | Song song | **nhiều Task call trong 1 response** (2.3) |
-| `tool_choice` **auto / any / forced** | có thể trả text / **phải** gọi tool nào đó / **phải** gọi đúng tool X (3.3) |
+| `tool_choice` **auto / any / forced** | có thể trả text / **phải** gọi tool nào đó / **phải** gọi đúng tool X. any/forced **chỉ khi cần tool call** (structured output); hội thoại => auto. ⚠️ API thật: Opus 5.5 / Sonnet 5.5 / Fable 5.1+ trả **400** với any/forced, **thi theo guide** (3.3) |
 | **transient / validation / business / permission** | chỉ **transient** đáng retry. Business => `retriable: false` + lời giải thích cho khách (3.2) |
 | **Access failure** vs **empty result** | gọi **không được** (cần quyết định retry) / gọi được, **không có** dữ liệu (thành công) (3.2, 6.3) |
 | MCP **resource** vs **tool** | resource = **catalog để xem** (issue list, DB schema) => bớt dò dẫm. tool = **hành động** (3.4) |
@@ -77,6 +78,8 @@
 | `.claude/commands/` vs `~/.claude/commands/` | team (git) / cá nhân (4.2) |
 | `.mcp.json` vs `~/.claude.json` | MCP team + `${ENV}` cho secret / MCP cá nhân, thử nghiệm (3.4) |
 | **Skill** vs **CLAUDE.md** | gọi **khi cần** / **luôn load** (4.2) |
+| **Tool** vs **Skill** vs **MCP** | tool = **làm** (hàm, code bạn chạy, trả dữ liệu, D2) / skill = **biết cách làm** (`SKILL.md` load vào context, **dùng** tool, `allowed-tools` giới hạn tool, D3) / MCP server = **gói tool** từ ngoài (2.1, 3.4, 4.2) |
+| Rule **tự động** cho file rải rác | `.claude/rules/` + `paths:`. ❌ skill (guide: skill gọi **khi cần**, không tự áp) (Q6, 4.3) |
 | `context: fork` / `allowed-tools` / `argument-hint` | **tách context** / **giới hạn tool** / **gợi ý tham số** (4.2) |
 | **Plan mode** vs **direct** | lớn, nhiều file, kiến trúc / nhỏ, rõ, 1 file. Kết hợp: plan rồi direct (4.4) |
 | **Explore subagent** | tách phần khám phá dài, trả tóm tắt (4.4) |
@@ -93,8 +96,8 @@
 | Retry **có ích** vs **vô ích** | lỗi format / cấu trúc / thông tin **không có** trong tài liệu (5.4) |
 | Field **required** vs **nullable** | có thể thiếu => **nullable**, không thì model **bịa** (5.3) |
 | enum mở rộng | `"other"` + `detail`, `"unclear"` (5.3) |
-| **Few-shot** | 2-4 ví dụ, case **mơ hồ**, có **lý do**. Format nhất quán, giảm hallucination extraction (5.2) |
-| **Batch** | 50% rẻ, tới 24h, **không SLA**, **không** multi-turn tool, `custom_id`, gửi lại **chỉ cái lỗi** (5.5) |
+| **Few-shot** | 2-4 ví dụ, case **mơ hồ**, có **lý do**. Format nhất quán, giảm hallucination extraction, phân biệt pattern OK vs lỗi thật => **bớt false positive** (5.2) |
+| **Batch** | 50% rẻ, tới 24h, **không SLA**, **không** multi-turn tool, `custom_id`, **polling** lấy kết quả, gửi lại **chỉ cái lỗi** (5.5) |
 | 1 pass vs **multi-pass** | nhiều file => **per-file + integration** (5.6) |
 
 **Context + reliability (D5)**
@@ -107,7 +110,7 @@
 | Context xuống cấp ("typical patterns") | **scratchpad file**, subagent, `/compact` (6.4) |
 | Crash recovery | agent export **manifest**, coordinator load khi resume (6.4) |
 | 97% tổng thể | đo **theo loại tài liệu + field**, **stratified sampling** (6.5) |
-| Confidence | **field-level**, calibrate bằng **labeled validation set** (6.5) |
+| Confidence | **field-level**, calibrate bằng **labeled validation set** => route review. ❌ tự báo 1-10 thô để escalate (Q3). ❌ chỉnh ngưỡng theo điểm tổng (6.5) |
 | Nguồn **mâu thuẫn** | giữ **cả 2** + nguồn + **ngày** (6.6) |
 
 ---
@@ -128,4 +131,4 @@
 
 ## 7. ❌ Không thi (thấy đáp án nói về mấy cái này thì cảnh giác)
 
-Fine-tuning · RLHF / Constitutional AI · auth / billing / OAuth · host MCP server · embedding / vector DB · computer use · vision · **streaming** · rate limit / tính giá · tokenizer · **prompt caching chi tiết** · cấu hình AWS / GCP / Azure · benchmark model
+Fine-tuning · RLHF / Constitutional AI · auth / billing / OAuth · host MCP server · embedding / vector DB · computer use · vision · **streaming** · rate limit / tính giá · tokenizer · **prompt caching chi tiết** · cấu hình AWS / GCP / Azure · benchmark model · chi tiết ngôn ngữ / framework cụ thể

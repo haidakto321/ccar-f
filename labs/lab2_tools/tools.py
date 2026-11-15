@@ -38,12 +38,12 @@ VAGUE_TOOLS = _with_descriptions({
 # TODO: rewrite each description. Say what it does, what input it needs (with format),
 # what it returns, and WHEN to use it instead of the similar tool.
 MY_TOOLS = _with_descriptions({
-    "get_customer": "Find a customer.",
-    "search_customers": "Find customers.",
-    "lookup_order": "Get order info.",
-    "list_orders": "Get orders.",
-    "process_refund": "Refund.",
-    "escalate_to_human": "Escalate.",
+    "get_customer": "Find a customer. Requires the customer's email or ID. Returns customer details. Use this when you have a specific customer in mind.",
+    "search_customers": "Find customers. Requires search criteria like name or email. Returns a list of matching customers. Use this when you need to locate customers without a specific ID.",
+    "lookup_order": "Get order info. Requires the order ID. Returns order details. Use this when you have a specific order to check.",
+    "list_orders": "Get orders. Requires the customer ID. Returns a list of the customer's orders. Use this when you want to see all orders for a customer.",
+    "process_refund": "Refund. Requires the order ID and refund amount. Returns confirmation of the refund. Use this when you need to issue a refund for a specific order.",
+    "escalate_to_human": "Escalate. Requires context of the issue. Returns confirmation of escalation. Use this when the issue cannot be resolved with the available tools.",
 })
 
 # (user message, the tool a careful agent calls first)

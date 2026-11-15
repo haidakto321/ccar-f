@@ -74,11 +74,16 @@ def right_loop(client) -> str:
     while True:
         response = call_claude(client, messages)
         print(f"  [stop_reason={response.stop_reason}]")
-        # TODO 1: append the assistant turn - the whole response.content, not only the text
-        # TODO 2: stop_reason == "tool_use" -> run_tools(response), append ONE user message with all results, loop
-        # TODO 3: stop_reason == "end_turn" -> return text_of(response)
-        # TODO 4: anything else (max_tokens, refusal) -> print the reason and return what you have
-        raise NotImplementedError("Lab 1: fill TODO 1-4 in right_loop()")
+        messages.append({"role": "assistant", "content": response.content})
+        if response.stop_reason == "tool_use":
+            results = run_tools(response)
+            if results:
+                messages.append({"role": "user", "content": results})
+        elif response.stop_reason == "end_turn":
+            return text_of(response)
+        else:
+            print(f"Unexpected stop_reason: {response.stop_reason}")
+            return text_of(response)
 
 
 MODES = {"wrong-text": wrong_stop_on_text, "wrong-turns": wrong_fixed_turns, "right": right_loop}

@@ -2,7 +2,7 @@
 
 > Làm giống bộ AIF-C01 (`springboot-rag/docs/AIF-C01-NOTES.md`): note chính + cheatsheet + nhật ký quiz.
 > Nguồn chính: exam guide chính thức v1.0 (effective July 2026) bạn đã tải. Bắt đầu: 2026-10-31.
-> ⚠️ Kiểm tra 2026-11-03: đợt đổi đề **07/12/2026** chỉ áp dụng cho CCAO-F, CCDV-F, CCAR-P (guide mới ra 17/11). **CCAR-F không có trong danh sách** => vẫn học guide v1.0. Nguồn: [Pearson VUE - Anthropic](https://www.pearsonvue.com/us/en/anthropic.html). Sau 17/11 xem lại trang này + [Partner Academy](https://anthropic-partners.skilljar.com/claude-certified-architect-foundations-certification) 1 lần cho chắc.
+> ⚠️ Kiểm tra 2026-11-03: đợt đổi đề **07/12/2026** chỉ áp dụng cho CCAO-F, CCDV-F, CCAR-P (guide mới ra 17/11). **CCAR-F không có trong danh sách** => vẫn học guide v1.0 (2026-11-15: banner của cloudexam.pro cũng ghi đợt đổi đề 07/12 "trừ CCAR-F"). Nguồn: [Pearson VUE - Anthropic](https://www.pearsonvue.com/us/en/anthropic.html). Sau 17/11 xem lại trang này + [Partner Academy](https://anthropic-partners.skilljar.com/claude-certified-architect-foundations-certification) 1 lần cho chắc.
 > Bản đọc nhanh trước giờ thi: `CCAR-F-CHEATSHEET.md`.
 
 **Ký hiệu nguồn**
@@ -85,6 +85,7 @@
 - Embedding, vector DB (khác AIF!). Computer use. Vision / ảnh. **Streaming / SSE**
 - Rate limit, quota, **tính giá API**. Token counting / tokenizer
 - **Prompt caching chi tiết** (chỉ cần biết nó tồn tại). Cấu hình cloud (AWS / GCP / Azure). Benchmark / so sánh model
+- Chi tiết implementation của **ngôn ngữ / framework cụ thể** (chỉ cần đủ để cấu hình tool + schema)
 
 ### 🧠 10 luật vàng (rút ra từ 12 câu mẫu của guide) *(Claude)*
 
@@ -95,7 +96,7 @@
 | 3 | Root cause nằm **đúng chỗ log chỉ ra**. Agent downstream làm đúng việc được giao thì đừng đổ lỗi cho nó | `[G Q7]` |
 | 4 | Lỗi => trả **structured error** (loại lỗi, đã thử gì, partial result, hướng khác). ❌ "Operation failed" chung chung, ❌ trả rỗng như thành công, ❌ dừng cả workflow | `[G 2.2, 5.3]` `[G Q8]` |
 | 5 | **Least privilege**: mỗi agent chỉ có tool của vai trò nó. Cần thêm cho case phổ biến => cho **1 tool hẹp** (vd `verify_fact`), không cho cả bộ | `[G 2.3]` `[G Q9]` |
-| 6 | **Self-reported confidence** (1-10) và **sentiment** = **không đáng tin** để quyết định escalate | `[G 5.2]` `[G Q3]` |
+| 6 | **Self-reported confidence** (1-10) và **sentiment** = **không đáng tin** để quyết định escalate. ⚠️ Khác: confidence **từng field / finding** đã **calibrate bằng labeled set** để route human review = ✅ (5.6, 6.5) | `[G 5.2]` `[G Q3]` `[G 4.6, 5.5]` |
 | 7 | Model **to hơn** / context **dài hơn** **không** sửa được attention dilution => **chia nhỏ pass** | `[G 1.6, 4.6]` `[G Q12]` |
 | 8 | Đáp án nhắc tới **flag / file / env var không tồn tại** => loại ngay (`CLAUDE_HEADLESS`, `--batch`, `.claude/config.json` với commands array) | `[G Q4, Q10]` |
 | 9 | **Batch API** chỉ cho việc **không chặn** (overnight, weekly). Việc **chặn merge** => sync API | `[G 4.5]` `[G Q11]` |
@@ -197,6 +198,43 @@ while True:
 
 🧭 Dừng loop dựa vào **`stop_reason`**, không dựa vào **nội dung chữ**.
 
+**Tất cả giá trị `stop_reason`** *(Claude, theo API docs)*. API gắn field này vào mỗi response, báo **vì sao Claude ngừng viết**. Thi chủ yếu hỏi 2 cái đầu.
+
+| `stop_reason` | Nghĩa | Code làm gì |
+|---|---|---|
+| **`tool_use`** | Claude **xin** gọi tool. Nó **không tự chạy** tool | chạy tool, gửi `tool_result`, gọi lại |
+| **`end_turn`** | Claude trả lời xong | dừng, trả kết quả |
+| `max_tokens` | chạm `max_tokens` của bạn => câu trả lời **bị cắt** | tăng limit / cho viết tiếp. Không coi là xong |
+| `stop_sequence` | gặp chuỗi dừng bạn đặt trong `stop_sequences` | tùy thiết kế |
+| `pause_turn` | server tool chạy lâu (web search phía Anthropic) bị tạm dừng | gửi lại conversation để chạy tiếp |
+| `refusal` | bộ lọc an toàn từ chối | không retry y nguyên, xử lý riêng |
+
+`[W]` cloudexam bài 1.1 ghi thêm (ngoài phạm vi thi, đọc lướt): `stop_reason` `model_context_window_exceeded` (hết context window). Agent SDK: `max_turns` (mặc định không giới hạn) hết lượt => `ResultMessage` subtype `error_max_turns`; còn có `error_max_budget_usd`, `error_during_execution`. => `max_turns` = **lưới an toàn**, không phải cách dừng chính.
+
+**`tool_use` đi từ đâu ra** *(Claude)*
+
+1. **Danh sách tool do BẠN gửi**, trong param `tools=[...]` của **mỗi** request: `name` + `description` + `input_schema` (JSON schema). Claude chỉ biết những tool có trong list này. Code mẫu: `labs/common/support_tools.py`.
+2. Định nghĩa tool nằm trong **prompt** => tốn input token **mỗi lần gọi**. Đo thật: 1 câu ngắn + 6 tool = **1.300 input token**.
+3. Claude đọc system + messages + **description** của tool => tự quyết (model-driven): trả lời luôn, hay cần thêm dữ liệu => chọn tool hợp nhất. Description mơ hồ => chọn sai tool (lab 2, `[G 2.1]`).
+4. Muốn gọi tool, Claude trả về block `tool_use` và API đặt `stop_reason = "tool_use"`:
+   ```json
+   {"type": "tool_use", "id": "toolu_016Y...", "name": "get_customer",
+    "input": {"email": "alex.tran@example.com"}}
+   ```
+5. **Code của bạn** chạy hàm thật, gửi lại `{"type": "tool_result", "tool_use_id": "toolu_016Y...", "content": "..."}` trong **1** user message. Có lỗi => thêm `"is_error": true`. `tool_use_id` phải khớp `id`.
+6. 1 response có thể có **nhiều** `tool_use` (gọi song song) => gửi **tất cả** `tool_result` trong **1** message.
+7. `tool_choice` đổi quyền quyết định: `auto` (Claude tự chọn, mặc định) / `any` (phải gọi 1 tool nào đó) / `{"type":"tool","name":X}` (phải gọi X) / `none` (cấm gọi tool) `[G 2.3]`.
+
+🧪 **Lab 1 (đã chạy 2026-11-13, Haiku 5.5)**
+
+| Mode | Kết quả | Bài học |
+|---|---|---|
+| `wrong-text` (dừng khi có chữ) | **chạy đúng do may mắn** | Model mới không trả text chung response với `tool_use` (text giữa các tool nằm trong thinking ẩn). Điều kiện dừng sai có thể **pass test rồi hỏng khi đổi model / prompt** |
+| `wrong-turns` (dừng sau 2 vòng) | cắt sau 2/4 bước, câu trả lời **rỗng** | `stop_reason` vẫn là `tool_use` mà code đã dừng => mất việc |
+| `right` (theo `stop_reason`) | 4 bước, đủ câu trả lời | 2 `lookup_order` **song song** trong 1 response, gửi lại chung 1 message |
+
+Thêm: agent nói "không thấy ngày hôm nay" => thiếu thông tin trong context (D5): đưa dữ kiện agent cần (ngày hiện tại) vào system prompt.
+
 ### 2.2 Multi-agent: coordinator - subagent `[G 1.2]`
 
 - **Hub-and-spoke**: mọi giao tiếp giữa subagent **đi qua coordinator** (dễ quan sát, xử lý lỗi thống nhất, kiểm soát luồng thông tin).
@@ -210,11 +248,28 @@ while True:
 
 - Tạo subagent bằng **Task tool**. Coordinator phải có `"Task"` trong `allowedTools`.
 - **AgentDefinition**: description, system prompt, tool restrictions cho từng loại subagent.
-- Context phải **đưa thẳng vào prompt** của subagent (vd đưa kết quả web search + phân tích tài liệu cho synthesis agent).
+- Context phải **đưa thẳng vào prompt** của subagent (vd đưa kết quả web search + phân tích tài liệu cho synthesis agent). Subagent **không** share memory giữa các lần gọi.
 - Truyền dữ liệu bằng **format có cấu trúc**, tách **nội dung** khỏi **metadata** (URL, tên tài liệu, số trang) => giữ được nguồn.
 - **Chạy song song**: coordinator gọi **nhiều Task tool call trong 1 response** (không phải mỗi turn 1 cái).
 - Prompt cho coordinator: nêu **mục tiêu + tiêu chí chất lượng**, **không** viết từng bước thủ tục => subagent linh hoạt hơn.
 - **Fork session**: tách nhánh từ 1 bản phân tích chung để thử hướng khác nhau.
+- **Tool của subagent** (`tools` trong AgentDefinition): bỏ trống => kế thừa **hết** tool trong session. Subagent dùng tool quá tay => thu hẹp `tools` (least privilege).
+
+🧭 **Đề**: "coordinator **không gọi được** subagent" => thiếu `"Task"` trong `allowedTools`. "Subagent **làm quá tay**" => thu hẹp `AgentDefinition.tools`. Hub-and-spoke: mọi thứ đi qua coordinator.
+
+⚙️ **SDK thật** (docs Agent SDK, kiểm tra 2026-11-15). Đề vẫn dùng mô hình đơn giản ở trên *(Claude)*:
+
+| Lớp | Là gì |
+|---|---|
+| **Tool pool** | mọi tool có trong session: built-in + MCP server đã kết nối |
+| `allowedTools` | list **auto-approve** (chạy không hỏi). Tool không có trong list **vẫn tồn tại**, ❌ không phải "hộp tool của coordinator" |
+| `AgentDefinition.tools` | tool của **1 subagent**, lấy từ pool. Bỏ trống = lấy hết |
+
+- Subagent **có thể** có tool mà coordinator không list. Ví dụ trong docs: coordinator `allowed_tools` = Read, Grep, Glob, Agent; subagent `test-runner` có `tools` = **Bash**, Read, Grep.
+- Giới hạn: subagent chỉ chọn được tool **có trong session** (MCP server chưa kết nối => không dùng được).
+- Thiết kế thường gặp: coordinator **ít tool** (chủ yếu Task để giao việc), worker giữ tool làm việc thật.
+- Docs chưa nói rõ: Bash của subagent trong ví dụ trên chạy luôn hay phải xin phép (vì không nằm trong list auto-approve).
+- Subagent **có thể** tạo subagent con (lồng nhau), sâu tối đa mặc định **3** (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, đặt `1` để chặn). Tên tool hiện tại là `Agent` (guide gọi `Task`).
 
 ### 2.4 Workflow nhiều bước: enforcement + handoff `[G 1.4]`
 
@@ -294,6 +349,19 @@ while True:
 | `"auto"` | model **có thể** trả text thay vì gọi tool |
 | `"any"` | **bắt buộc** gọi tool, model tự chọn tool nào |
 | `{"type":"tool","name":"X"}` | **bắt buộc** gọi đúng tool **X** (vd ép `extract_metadata` chạy trước, các bước sau xử lý ở turn sau) |
+
+🧭 `any` / forced **chỉ khi thật sự cần 1 tool call** (vd **đảm bảo structured output**: lab 5, lab 6). Hội thoại thường => `auto`. *(Claude)*
+
+⚠️ **API thật** (claude-api reference, 2026-11): model mới nhất (Opus 5.5, Sonnet 5.5, Fable 5.1 / 5.2) **trả lỗi 400** với `any` / forced => dùng `auto` + `strict: true` hoặc structured outputs. Haiku 5.5 vẫn chạy (lab 2). **Thi theo guide**: `any` / forced vẫn là đáp án đúng trong scenario *(Claude)*.
+- Với `any` / forced, Claude **không viết câu giải thích** trước tool call `[W]`.
+- Bộ tool **rất lớn**: API có **tool search** (`defer_loading`). Cloudexam nói độ chính xác giảm rõ khi > 30-50 tool `[W]`. Đề vẫn: 18 tool => **giảm còn 4-5, chia theo vai trò**.
+
+🧪 **Lab 2 (2026-11-14, Haiku 5.5)**: user nói "Thanks, bye!" (không cần tool):
+- `auto` => trả text ✅
+- `any` => gọi **`escalate_to_human`** ❌ (bị ép gọi tool nào đó => chọn bừa 1 **hành động**)
+- forced `get_customer` => gọi lookup khi không có gì để tra ❌
+
+Thêm từ lab 2: tên tool rõ (`get_customer` vs `search_customers`) + câu hỏi rõ => description mơ hồ vẫn 8/8. Description dài hơn **lái hành vi**: "needs customer_id from get_customer" => thêm 1 bước gọi thừa, "ask, don't guess" => hỏi lại trước khi search (6/8). => Viết description xong phải **test bằng bộ case**, chạy nhiều lần.
 
 ### 3.4 MCP server trong Claude Code / agent `[G 2.4]`
 
@@ -391,6 +459,7 @@ Test files: use React Testing Library, no snapshot tests.
 |---|---|
 | **2-3 ví dụ input / output** cụ thể | mô tả bằng lời bị hiểu **không nhất quán** |
 | **Test-driven**: viết test trước, đưa **test fail** cho Claude sửa dần | cần đúng edge case, performance |
+| **Test case cụ thể** (input + output mong muốn) | sửa 1 edge case (vd giá trị `null` trong migration script) |
 | **Interview pattern**: để Claude **hỏi lại** trước khi làm | domain **lạ** (cache invalidation, failure mode) |
 | Gửi **tất cả lỗi trong 1 message** | các lỗi **liên quan nhau** (sửa cái này ảnh hưởng cái kia) |
 | Sửa **lần lượt** | các lỗi **độc lập** |
@@ -428,6 +497,8 @@ claude -p "Review this PR for bugs and security issues" \
 - **2-4 ví dụ**, nhắm vào **case mơ hồ**, có **lý do** vì sao chọn hành động này mà không chọn cái khác.
 - Giúp model **khái quát** sang pattern mới (không chỉ khớp case có sẵn).
 - Extraction: few-shot với **tài liệu nhiều dạng** (citation inline vs bibliography, bảng vs văn xuôi) => **giảm hallucination** và giảm field rỗng.
+- Review code: few-shot **phân biệt pattern chấp nhận được vs lỗi thật** => **bớt false positive** mà model vẫn khái quát được.
+- Few-shot cũng dùng cho **chọn tool khi request mơ hồ** và mẫu **format output** (location, issue, severity, suggested fix).
 
 ### 5.3 Structured output bằng tool_use + JSON schema `[G 4.3]`
 
@@ -459,6 +530,7 @@ claude -p "Review this PR for bugs and security issues" \
 - Retry **có ích**: lỗi format, lỗi cấu trúc. Retry **vô ích**: thông tin **không có** trong tài liệu (nằm ở tài liệu khác không được đưa vào).
 - **Self-check field**: lấy cả `calculated_total` và `stated_total` để bắt lệch; thêm `conflict_detected`.
 - **`detected_pattern`** trong mỗi finding => khi dev bỏ qua (dismiss) finding, phân tích được **pattern nào hay báo sai**.
+- Công cụ guide nhắc: **Pydantic** (schema validation, semantic validation error, validation-retry loop).
 
 ### 5.5 Batch processing `[G 4.5]`
 
@@ -468,6 +540,7 @@ claude -p "Review this PR for bugs and security issues" \
 | Thời gian | **tới 24 giờ**, **không có SLA** độ trễ |
 | Hạn chế | **không** hỗ trợ **multi-turn tool calling** trong 1 request |
 | Ghép kết quả | **`custom_id`** |
+| Lấy kết quả | **polling** tới khi batch xong |
 
 - Hợp: overnight report, weekly audit, nightly test generation. Không hợp: **pre-merge check** (chặn dev).
 - **Tính tần suất gửi theo SLA**: SLA 30 giờ, batch tới 24 giờ => gửi theo **cửa sổ 4 giờ** (đợi tối đa 4h + xử lý 24h = 28h < 30h, còn dư) *(Claude giải thích số của guide)*.
@@ -479,7 +552,7 @@ claude -p "Review this PR for bugs and security issues" \
 - **Self-review yếu**: model còn giữ reasoning lúc sinh code => ít nghi ngờ quyết định của mình.
 - **Instance độc lập** (không có context cũ) bắt lỗi tốt hơn self-review hoặc extended thinking.
 - **Multi-pass**: per-file (lỗi local) + integration pass (data flow giữa file) => tránh **attention dilution** và feedback **mâu thuẫn**.
-- Verification pass: model ghi **confidence cho từng finding** => routing review.
+- Verification pass: model ghi **confidence cho từng finding** => routing review (con số phải được **calibrate**, xem 6.5).
 
 🧭 Sample Q12 `[G Q12]`: 14 file review kém => ✅ chia pass. ❌ bắt dev chia PR (đẩy việc cho người). ❌ model context lớn hơn (không sửa attention). ❌ chạy 3 lần lấy đa số (**bỏ sót** bug thật chỉ thấy thỉnh thoảng).
 
@@ -510,13 +583,15 @@ claude -p "Review this PR for bugs and security issues" \
 | Tool trả **nhiều khách trùng tên** | **hỏi thêm thông tin** (email, SĐT), ❌ tự chọn theo heuristic |
 | Escalate **sai nhiều** (case dễ thì escalate, case khó thì tự làm) | thêm **tiêu chí escalate rõ ràng + few-shot** vào system prompt `[G Q3]` |
 
-- ❌ **Sentiment** và **self-reported confidence** = proxy **không đáng tin** cho độ phức tạp.
+- ❌ **Sentiment** và **self-reported confidence** = proxy **không đáng tin** cho độ phức tạp (để quyết định escalate). Khác 6.5: confidence đã **calibrate** để route review = ✅.
 - Escalate vì **policy exception / gap**, không phải chỉ vì case "phức tạp".
 
 ### 6.3 Error propagation trong multi-agent `[G 5.3]`
 
 - Structured error context: **failure type**, **query đã thử**, **partial result**, **hướng thay thế** => coordinator quyết định thông minh (retry query khác, đổi cách, hoặc đi tiếp với partial).
 - 2 anti-pattern: ❌ **nuốt lỗi** (trả rỗng như thành công) · ❌ **dừng toàn bộ** workflow vì 1 lỗi.
+- ❌ Status chung chung ("search unavailable") **giấu** thông tin coordinator cần. Phải tách **access failure** (timeout, cần quyết định retry) với **valid empty result** (tìm được, không có kết quả).
+- Subagent **tự retry lỗi transient** tại chỗ, chỉ đẩy lên lỗi **không tự xử lý được** + đã thử gì + partial result.
 - Synthesis output có **coverage annotation**: phần nào có nguồn chắc, phần nào **thiếu** vì nguồn không truy cập được.
 
 ### 6.4 Context khi khám phá codebase lớn `[G 5.4]`
@@ -537,6 +612,11 @@ claude -p "Review this PR for bugs and security issues" \
 - **Stratified random sampling** các extraction **confidence cao** => đo error rate liên tục + bắt lỗi kiểu mới.
 - **Field-level confidence** do model ghi, nhưng phải **calibrate bằng labeled validation set** (không tin con số thô).
 - Đưa người xem: confidence **thấp**, tài liệu **mơ hồ / mâu thuẫn** => ưu tiên dùng reviewer có hạn.
+- Sau khi bớt human review: **lấy mẫu stratified đều đặn** (vd hằng tuần `[W]`) các kết quả confidence cao để bắt lỗi kiểu mới.
+- ❌ Đáp án nhiễu hay gặp `[W]`: chỉnh threshold theo **điểm tổng**, hoặc chạy thử rồi **chờ lỗi xuất hiện**. ✅ phân tích **theo loại tài liệu + field**.
+- Ví dụ minh họa `[W]` (số giả định): 97% tổng = mẫu chuẩn 80% tài liệu (đúng 99%) + chủ nhà tự soạn 15% (93%) + **viết tay 5% (78%)** => con số tổng đẹp che loại viết tay kém.
+
+🧭 Confidence: **tự báo thô** (1-10) để quyết định escalate ❌ `[G Q3]`. Confidence **từng field / finding** + **calibrate bằng labeled set** để route review ✅ `[G 4.6, 5.5]`. Calibrate = chạy trên bộ tài liệu đã có đáp án đúng, đo mỗi mức điểm đúng thật bao nhiêu %, rồi đặt ngưỡng **riêng cho từng field** *(Claude)*.
 
 💡 Liên hệ springboot-rag: golden set + baseline gate của bạn ≈ "labeled validation set". Chia kết quả eval theo loại câu hỏi ≈ "accuracy by segment".
 
@@ -629,7 +709,7 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 | 3 | [claudecertificationguide.com](https://claudecertificationguide.com/ccar-f) | free | diagnostic 10 câu + mock + bài học. Không liên quan Anthropic |
 | 4 | [Tutorials Dojo - CCAR-F practice exams](https://portal.tutorialsdojo.com/product/claude-certified-architect-foundations-ccar-f-practice-exams/) | trả phí | 100+ câu scenario. TD có tiếng ở mảng AWS |
 | 5 | Udemy (vd [bộ này](https://www.udemy.com/course/ccar-f-claude-certified-architect-foundations-practice-test/)) | trả phí, hay giảm giá | Rất nhiều bộ, chất lượng **không đều**. Chọn bộ **mới cập nhật theo guide v1.0**, rating cao, đọc review |
-| 6 | [Anthropic Exam Pro - Kiến thức CCAR-F](https://anthropic.cloudexam.pro/kien-thuc/ccar-f) (tiếng Việt) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** | Kiểm tra 2026-11-03. **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên có chữ "Anthropic". Không ghi tác giả, chỉ có Facebook. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
+| 6 | [Anthropic Exam Pro - Kiến thức CCAR-F](https://anthropic.cloudexam.pro/kien-thuc/ccar-f) (tiếng Việt) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** (giá 2026-11-03, trang index giờ không hiện giá) | Kiểm tra 2026-11-03 + **2026-11-15** (banner: đợt đổi đề 07/12 "**trừ CCAR-F**", khớp ⚠️ đầu file; bài học ghi đối chiếu docs 02/11/2026; chi tiết thêm của bài 1.1, 2.3, 5.5 đã ghi vào mục 2.1, 3.3, 6.5 với ký hiệu `[W]`). **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên có chữ "Anthropic". Không ghi tác giả, chỉ có Facebook. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
 
 ⚠️ **Tránh "dump"**: site ghi "**real exam questions**" = vi phạm **NDA** (`[G §14]`) => có thể bị **hủy kết quả + cấm thi** (`[G §13]`). Bộ AIF dùng ExamTopics, nhưng với bài này **đừng dùng** site kiểu đó.
 ⚠️ Mock bên ngoài **có thể sai đáp án** (bài học từ AIF: Q6, Q71). Thấy mâu thuẫn với guide => **tin guide**, ghi ⚠️ vào mục 10.

@@ -1,8 +1,8 @@
 # CCAR-F - Ghi chú ôn thi Claude Certified Architect - Foundations
 
-> Làm giống bộ AIF-C01 (`springboot-rag/docs/AIF-C01-NOTES.md`): note chính + cheatsheet + nhật ký quiz.
+> Cấu trúc: note chính + cheatsheet + nhật ký quiz.
 > Nguồn chính: exam guide chính thức v1.0 (effective July 2026) bạn đã tải. Bắt đầu: 2026-10-31.
-> ⚠️ Kiểm tra 2026-11-03: đợt đổi đề **07/12/2026** chỉ áp dụng cho CCAO-F, CCDV-F, CCAR-P (guide mới ra 17/11). **CCAR-F không có trong danh sách** => vẫn học guide v1.0 (2026-11-15: banner của cloudexam.pro cũng ghi đợt đổi đề 07/12 "trừ CCAR-F"). Nguồn: [Pearson VUE - Anthropic](https://www.pearsonvue.com/us/en/anthropic.html). Sau 17/11 xem lại trang này + [Partner Academy](https://anthropic-partners.skilljar.com/claude-certified-architect-foundations-certification) 1 lần cho chắc.
+> ⚠️ Kiểm tra 2026-11-03: đợt đổi đề **07/12/2026** chỉ áp dụng cho CCAO-F, CCDV-F, CCAR-P (guide mới ra 17/11). **CCAR-F không có trong danh sách** => vẫn học guide v1.0 (2026-11-15: banner của 1 site học tiếng Việt (mục 9 #6) cũng ghi đợt đổi đề 07/12 "trừ CCAR-F"). Nguồn: [Pearson VUE - Anthropic](https://www.pearsonvue.com/us/en/anthropic.html). Sau 17/11 xem lại trang này + [Partner Academy](https://anthropic-partners.skilljar.com/claude-certified-architect-foundations-certification) 1 lần cho chắc.
 > Bản đọc nhanh trước giờ thi: `CCAR-F-CHEATSHEET.md`.
 
 **Ký hiệu nguồn**
@@ -55,7 +55,7 @@
 | Giấy tờ | CMND / passport còn hạn, **tên phải khớp y hệt** tên đăng ký |
 
 💡 Guide **không** nói sai có bị trừ điểm hay không. Không có lý do bỏ trống => **trả lời hết mọi câu** *(Claude)*.
-💡 Khác AIF: **không** có câu ordering / matching, **không** có câu "unscored" được nhắc tới. Tất cả là câu chọn đáp án trong scenario.
+💡 **Không** có câu ordering / matching, **không** có câu "unscored" được nhắc tới. Tất cả là câu chọn đáp án trong scenario.
 
 **Trọng số** `[G §4]` (thứ tự domain theo guide chính thức)
 
@@ -82,7 +82,7 @@
 - Fine-tuning, training model. Kiến trúc bên trong Claude, RLHF, Constitutional AI
 - Authentication, billing, account, OAuth, API key rotation
 - Deploy / host MCP server (hạ tầng, network, container)
-- Embedding, vector DB (khác AIF!). Computer use. Vision / ảnh. **Streaming / SSE**
+- Embedding, vector DB. Computer use. Vision / ảnh. **Streaming / SSE**
 - Rate limit, quota, **tính giá API**. Token counting / tokenizer
 - **Prompt caching chi tiết** (chỉ cần biết nó tồn tại). Cấu hình cloud (AWS / GCP / Azure). Benchmark / so sánh model
 - Chi tiết implementation của **ngôn ngữ / framework cụ thể** (chỉ cần đủ để cấu hình tool + schema)
@@ -236,7 +236,7 @@ Mỗi luật: **dấu hiệu trong đề** => **chọn gì** => **vì sao**. G�
 | **synthesis agent** | agent **tổng hợp** kết quả các agent khác thành 1 bản | research scenario |
 | **high-ambiguity** | **mơ hồ cao**: chưa rõ khách muốn gì | "high-ambiguity requests" |
 
-💡 **Mẹo đọc đề** (giống AIF, chỉnh cho bài này)
+💡 **Mẹo đọc đề**
 1. **Đọc câu CUỐI trước**: "most effective **first step**", "most **maintainable**", "**guarantee**", "**reduce overhead while maintaining reliability**". Chữ đó quyết định đáp án.
 2. **Đọc số liệu trong đề**: "12% of cases", "85% simple / 15% complex", "40% latency". Số liệu thường chỉ thẳng vào đáp án. Vd "85% chỉ cần check fact đơn giản, 15% cần điều tra sâu" => cho 1 tool hẹp lo 85% case dễ, 15% case khó vẫn đi qua coordinator (Q9).
 3. **Đáp án sai thường là**: (a) **prompt** khi cần **đảm bảo 100%**, (b) **hệ thống mới** (classifier, routing layer, model to hơn) khi chưa thử cách đơn giản, (c) **đẩy việc cho developer** (vd "bắt dev chia PR nhỏ" thay vì sửa hệ thống), (d) **feature không tồn tại**.
@@ -298,7 +298,7 @@ while True:
 | `pause_turn` | server tool chạy lâu (web search phía Anthropic) bị tạm dừng | gửi lại conversation để chạy tiếp |
 | `refusal` | bộ lọc an toàn từ chối | không retry y nguyên, xử lý riêng |
 
-`[W]` cloudexam bài 1.1 ghi thêm (ngoài phạm vi thi, đọc lướt): `stop_reason` `model_context_window_exceeded` (hết context window). Agent SDK: `max_turns` (mặc định không giới hạn) hết lượt => `ResultMessage` subtype `error_max_turns`; còn có `error_max_budget_usd`, `error_during_execution`. => `max_turns` = **lưới an toàn**, không phải cách dừng chính.
+`[W]` Site học tiếng Việt (mục 9 #6) bài 1.1 ghi thêm (ngoài phạm vi thi, đọc lướt): `stop_reason` `model_context_window_exceeded` (hết context window). Agent SDK: `max_turns` (mặc định không giới hạn) hết lượt => `ResultMessage` subtype `error_max_turns`; còn có `error_max_budget_usd`, `error_during_execution`. => `max_turns` = **lưới an toàn**, không phải cách dừng chính.
 
 **`tool_use` đi từ đâu ra** *(Claude)*
 
@@ -455,7 +455,7 @@ Thêm: agent nói "không thấy ngày hôm nay" => thiếu thông tin trong con
 
 ⚠️ **API thật** (claude-api reference, 2026-11): model mới nhất (Opus 5.5, Sonnet 5.5, Fable 5.1 / 5.2) **trả lỗi 400** với `any` / forced => dùng `auto` + `strict: true` hoặc structured outputs. Haiku 5.5 vẫn chạy (lab 2). **Thi theo guide**: `any` / forced vẫn là đáp án đúng trong scenario *(Claude)*.
 - Với `any` / forced, Claude **không viết câu giải thích** trước tool call `[W]`.
-- Bộ tool **rất lớn**: API có **tool search** (`defer_loading`). Cloudexam nói độ chính xác giảm rõ khi > 30-50 tool `[W]`. Đề vẫn: 18 tool => **giảm còn 4-5, chia theo vai trò**.
+- Bộ tool **rất lớn**: API có **tool search** (`defer_loading`). Site học tiếng Việt (mục 9 #6) nói độ chính xác giảm rõ khi > 30-50 tool `[W]`. Đề vẫn: 18 tool => **giảm còn 4-5, chia theo vai trò**.
 
 🧪 **Lab 2 (2026-11-14, Haiku 5.5)**: user nói "Thanks, bye!" (không cần tool):
 - `auto` => trả text ✅
@@ -512,7 +512,7 @@ Thêm từ lab 2: tên tool rõ (`get_customer` vs `search_customers`) + câu h�
 | `.mcp.json` | project | ✅ | MCP server team |
 | `~/.claude.json` | user | ❌ | MCP server cá nhân |
 
-💡 Ví dụ ngay trong máy bạn: `~/.claude/CLAUDE.md` có dòng `@RTK.md` = **@import** đúng kiểu guide nói. Và vì nó là **user-level**, người khác clone repo sẽ **không** có các rule đó (đúng loại bẫy trong đề).
+💡 Ví dụ ngay trong máy bạn: `~/.claude/CLAUDE.md` có dòng `@<tên-file>.md` = **@import** đúng kiểu guide nói. Và vì nó là **user-level**, người khác clone repo sẽ **không** có các rule đó (đúng loại bẫy trong đề).
 
 - **@import**: `@path/to/file.md` trong CLAUDE.md để tách nhỏ, mỗi package import chuẩn liên quan.
 - **`/memory`**: xem file memory nào **đang được load** => debug khi hành vi khác nhau giữa các session.
@@ -581,7 +581,7 @@ Test files: use React Testing Library, no snapshot tests.
 | Gửi **tất cả lỗi trong 1 message** | các lỗi **liên quan nhau** (sửa cái này ảnh hưởng cái kia) |
 | Sửa **lần lượt** | các lỗi **độc lập** |
 
-💡 Bạn đã dùng sẵn: superpowers **brainstorming** ≈ interview pattern, **TDD** skill ≈ test-driven iteration.
+💡 Bạn đã dùng sẵn: skill **brainstorming** ≈ interview pattern, skill **TDD** ≈ test-driven iteration.
 
 ### 4.6 Claude Code trong CI/CD `[G 3.6]`
 
@@ -769,7 +769,6 @@ Customer is frustrated about two delayed orders...
 
 🧭 Confidence: **tự báo thô** (1-10) để quyết định escalate ❌ `[G Q3]`. Confidence **từng field / finding** + **calibrate bằng labeled set** để route review ✅ `[G 4.6, 5.5]`. Calibrate = chạy trên bộ tài liệu đã có đáp án đúng, đo mỗi mức điểm đúng thật bao nhiêu %, rồi đặt ngưỡng **riêng cho từng field** *(Claude)*.
 
-💡 Liên hệ springboot-rag: golden set + baseline gate của bạn ≈ "labeled validation set". Chia kết quả eval theo loại câu hỏi ≈ "accuracy by segment".
 
 ### 6.6 Provenance + nguồn mâu thuẫn `[G 5.6]`
 
@@ -822,7 +821,7 @@ Guide khuyên làm 4 bài. Mỗi bài phủ 2-3 domain. Agent SDK có Python + T
 
 ## 8. Kế hoạch học: thi thử trước, học sau
 
-Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude giải thích + kiểm tra với guide => ghi vào mục 10 => cập nhật bảng 🔁 điểm yếu => cuối cùng đọc cheatsheet**.
+Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + kiểm tra với guide => ghi vào mục 10 => cập nhật bảng 🔁 điểm yếu => cuối cùng đọc cheatsheet**.
 
 **Vòng lặp mỗi lần làm mock**
 1. Làm **timed** (bấm giờ thật: 2 phút / câu). Không tra tài liệu.
@@ -834,7 +833,7 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 
 | Tuần | Ngày | Việc |
 |---|---|---|
-| 0 | 1-2/11 | Đọc mục 0 + 1 (30 phút). Làm **diagnostic** (Tutorials Dojo free sampler 20 câu). **Chưa học gì**. Ghi điểm từng domain |
+| 0 | 1-2/11 | Đọc mục 0 + 1 (30 phút). Làm **diagnostic** (bộ sampler free 20 câu, mục 9 #2). **Chưa học gì**. Ghi điểm từng domain |
 | 1 | 3-9/11 | **D1** (mục 2) + bắt đầu **Ex 1** |
 | 2 | 10-16/11 | **D2 + D3** (mục 3, 4). Ex 2 (nhanh, bạn đã quen) |
 | 3 | 17-23/11 | **D4** (mục 5) + **Ex 3** |
@@ -842,7 +841,7 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 | 5 | 1-7/12 | Mock full #2, #3. Ôn bảng 🔁. Mock **>= 80%** ổn định => **đặt lịch thi** |
 | 6 | ~8-12/12 | **Thi lần 1**. Đọc cheatsheet sáng hôm thi |
 
-**Ngày thi** (giống AIF)
+**Ngày thi**
 - Đọc `CCAR-F-CHEATSHEET.md` (10-15 phút).
 - Thi online: dọn bàn, 1 màn hình, không điện thoại / đồng hồ thông minh `[G §13]`.
 - 2 phút / câu. Câu dài (scenario) chậm hơn => đánh dấu, làm câu khác, quay lại.
@@ -854,15 +853,15 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 | # | Nguồn | Giá | Ghi chú |
 |---|---|---|---|
 | 1 | **Practice test chính thức trên Anthropic Partner Academy** | ? | Guide ghi 12 câu mẫu "drawn from the practice test" => có thể có bộ practice chính thức. **Kiểm tra trong Partner Academy trước** (Claude chưa xác minh được) |
-| 2 | [Tutorials Dojo - FREE CCAR-F sampler](https://portal.tutorialsdojo.com/product/free-claude-certified-architect-foundations-ccar-f-practice-exams-sampler/) | free | 20 câu, timed + review mode. **Dùng làm diagnostic** |
-| 3 | [claudecertificationguide.com](https://claudecertificationguide.com/ccar-f) | free | diagnostic 10 câu + mock + bài học. Không liên quan Anthropic |
-| 4 | [Tutorials Dojo - CCAR-F practice exams](https://portal.tutorialsdojo.com/product/claude-certified-architect-foundations-ccar-f-practice-exams/) | trả phí | 100+ câu scenario. TD có tiếng ở mảng AWS |
-| 5 | Udemy (vd [bộ này](https://www.udemy.com/course/ccar-f-claude-certified-architect-foundations-practice-test/)) | trả phí, hay giảm giá | Rất nhiều bộ, chất lượng **không đều**. Chọn bộ **mới cập nhật theo guide v1.0**, rating cao, đọc review |
-| 6 | [Anthropic Exam Pro - Kiến thức CCAR-F](https://anthropic.cloudexam.pro/kien-thuc/ccar-f) (tiếng Việt) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** (giá 2026-11-03, trang index giờ không hiện giá) | Kiểm tra 2026-11-03 + **2026-11-15** (banner: đợt đổi đề 07/12 "**trừ CCAR-F**", khớp ⚠️ đầu file; bài học ghi đối chiếu docs 02/11/2026; chi tiết thêm của bài 1.1, 2.3, 5.5 đã ghi vào mục 2.1, 3.3, 6.5 với ký hiệu `[W]`). **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên có chữ "Anthropic". Không ghi tác giả, chỉ có Facebook. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
+| 2 | Bộ sampler free | free | 20 câu, timed + review mode. **Dùng làm diagnostic** |
+| 3 | Site free (diagnostic + mock + bài học) | free | diagnostic 10 câu + mock + bài học. Không liên quan Anthropic |
+| 4 | Bộ practice exam trả phí (cùng nhà với #2) | trả phí | 100+ câu scenario |
+| 5 | Khóa luyện đề trên nền tảng khóa học online | trả phí, hay giảm giá | Rất nhiều bộ, chất lượng **không đều**. Chọn bộ **mới cập nhật theo guide v1.0**, rating cao, đọc review |
+| 6 | Site học tiếng Việt (bài học + khóa luyện đề) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** (giá 2026-11-03, trang index giờ không hiện giá) | Kiểm tra 2026-11-03 + **2026-11-15** (banner: đợt đổi đề 07/12 "**trừ CCAR-F**", khớp ⚠️ đầu file; bài học ghi đối chiếu docs 02/11/2026; chi tiết thêm của bài 1.1, 2.3, 5.5 đã ghi vào mục 2.1, 3.3, 6.5 với ký hiệu `[W]`). **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên trang có chữ "Anthropic". Không ghi tác giả. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
 | 7 | Bộ mock free online (mock 1) | free (cần đăng nhập) | Làm 2026-11-18: 39/60. Câu hỏi bám guide khá sát (nhiều đáp án = ví dụ nguyên văn của guide). ⚠️ **Lời giải thích hay bịa** (chương sách không có, tên MCP sai, flag không tồn tại) => chỉ dùng **đáp án**, tự kiểm với guide. 1 đáp án sai logic (Q46). Xem log mục 10 |
 
-⚠️ **Tránh "dump"**: site ghi "**real exam questions**" = vi phạm **NDA** (`[G §14]`) => có thể bị **hủy kết quả + cấm thi** (`[G §13]`). Bộ AIF dùng ExamTopics, nhưng với bài này **đừng dùng** site kiểu đó.
-⚠️ Mock bên ngoài **có thể sai đáp án** (bài học từ AIF: Q6, Q71). Thấy mâu thuẫn với guide => **tin guide**, ghi ⚠️ vào mục 10.
+⚠️ **Tránh "dump"**: site ghi "**real exam questions**" = vi phạm **NDA** (`[G §14]`) => có thể bị **hủy kết quả + cấm thi** (`[G §13]`). **Đừng dùng** site kiểu đó.
+⚠️ Mock bên ngoài **có thể sai đáp án**. Thấy mâu thuẫn với guide => **tin guide**, ghi ⚠️ vào mục 10.
 ⚠️ Mock bên ngoài có thể đánh **số domain khác** guide (xem mục 1 #1).
 
 ---
@@ -910,10 +909,10 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 
 ### Mock đã làm
 
-*(Mẫu ghi: giống AIF)*
+*(Mẫu ghi)*
 
 ```markdown
-**[TD-1 Q5] <đề rút gọn>** 🔁 (nếu sai lần 2)
+**[M2 Q5] <đề rút gọn>** 🔁 (nếu sai lần 2)
 A / B / C / D
 - ✅ **B**: vì ... `[G 2.1]`
 - ❌ A: ...

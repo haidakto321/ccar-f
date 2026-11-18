@@ -69,12 +69,12 @@ D3 is 20% of the exam and you already use Claude Code every day. Map what you ha
 
 | Look at | Exam topic (notes) |
 |---|---|
-| `~/.claude/CLAUDE.md` + its `@RTK.md` import | CLAUDE.md hierarchy: user level = only you, teammates don't get it (4.1) |
+| `~/.claude/CLAUDE.md` + any `@<file>.md` import in it | CLAUDE.md hierarchy: user level = only you, teammates don't get it (4.1) |
 | `~/.claude/settings.json` hooks (UserPromptSubmit, SessionStart with `compact`) | hooks are certain, a prompt is not (2.5) |
-| A skill's `SKILL.md` frontmatter (superpowers, caveman) | `context: fork`, `allowed-tools`, `argument-hint`; skill = on demand, CLAUDE.md = always (4.2) |
+| A skill's `SKILL.md` frontmatter (any installed skill) | `context: fork`, `allowed-tools`, `argument-hint`; skill = on demand, CLAUDE.md = always (4.2) |
 | `/memory` in a session | which memory files are loaded (4.1) |
 
-Then, on a **throwaway branch** of a real repo (for example springboot-rag), try the team-level setup:
+Then, on a **throwaway branch** of a real repo, try the team-level setup:
 
 - `.claude/rules/api.md` with `paths:` for the controller folder. Check it loads only when you edit a matching file (4.3).
 - A project skill in `.claude/skills/` with `context: fork` and `allowed-tools` (4.2).

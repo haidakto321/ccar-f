@@ -13,8 +13,8 @@ and what is **not verified yet**. Written 2026-11-03.
   effort `high` or below (default is `medium`). I expect it to work, but it is untested. Labs 2 and 5 catch the
   400 and explain; lab 6 exits with a hint.
 - **Agent SDK labs (4, 7)**: `setting_sources=[]` is meant to stop your own `~/.claude` hooks and plugins
-  (caveman, RTK, GSD...) from loading into the lab agent. The docs say settings load by default; I read that an
-  empty list loads none, but did not test it. If you see caveman-style answers in lab 4, that is why.
+  (user-level plugins and skills) from loading into the lab agent. The docs say settings load by default; I read that an
+  empty list loads none, but did not test it. If you see your own plugin's answer style in lab 4, that is why.
 - `tools=[]` in lab 4 removes the built-in tools so the agent only has the 4 support tools. Tool search is
   turned off there (`ENABLE_TOOL_SEARCH=false`) so the MCP tools load up front.
 

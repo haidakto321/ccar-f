@@ -24,7 +24,13 @@
 
 | # | Chủ đề | Quy tắc 1 dòng |
 |---|---|---|
-| | *(điền sau các mock)* | |
+| 1 | Hỏi / điều tra trước (M1 Q8, Q29) | Khách **đòi người rõ ràng** => escalate **ngay**. Bực nhưng làm được => đề nghị làm **hoặc** escalate. ❌ hỏi thêm trước |
+| 2 | Tóm tắt văn xuôi (Q18, Q56, Q37) | Giữ dữ liệu bằng **cấu trúc**: chỉ field cần, lớp context riêng, session mới + structured summary. ❌ prose, ❌ resume với tool result cũ |
+| 3 | Error cho model (Q14, Q49, Q51) | Có **loại + retry được không + bước tiếp**. Request hỏng => JSON-RPC protocol error. Tool chạy mà lỗi => `isError` |
+| 4 | Cấu hình Claude Code (Q20, Q25, Q50) | Có **pattern tên file** => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước |
+| 5 | Gộp / tách tool (Q3, Q31, Q44) | 1 tool **nhiều việc** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng |
+| 6 | Hook khi có cách đầy đủ hơn (Q2, Q52) | Nhiều đáp án là code => chọn cái **phủ mọi trường hợp** (kiểm tra sau khi loop dừng; tool tự tạo yêu cầu duyệt) |
+| 7 | Prompt caching (Q6, Q54) | Caching chỉ là **chi phí / tốc độ**, không sửa gốc. Chi tiết ngoài phạm vi thi => thường là **bẫy** |
 
 ---
 
@@ -32,7 +38,9 @@
 
 | Câu | Mock ghi | Đúng theo guide |
 |---|---|---|
-| | *(điền khi gặp)* | |
+| M1 Q46 (timeout, không biết đã gửi chưa) | `retry_safe: true` | báo "**status unknown, đừng retry**" (retry => gửi trùng) |
+| M1 Q32 (thiếu `user_id`) | strict schema | ⚠️ tranh cãi: "bảo đảm cấu trúc" => schema; "giúp **hiểu**" => description |
+| M1 (giải thích) | chương sách, flag, tên MCP bịa | chỉ tin **đáp án**, kiểm với guide (notes mục 10) |
 
 ---
 

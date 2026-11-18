@@ -222,6 +222,20 @@ Mỗi luật: **dấu hiệu trong đề** => **chọn gì** => **vì sao**. G�
 | **escalate** | chuyển case cho **người thật** | |
 | **first-contact resolution (FCR)** | % case xong **ngay lần liên hệ đầu**, không phải chuyển người / quay lại | |
 
+**Từ tiếng Anh hay gặp trong đề** (bạn ghi lại khi làm mock M1)
+
+| Từ | Nghĩa | Ví dụ trong đề |
+|---|---|---|
+| **dispute** / **billing dispute** | **tranh chấp, khiếu nại** / khách khiếu nại về **tiền bị tính** (trừ trùng, sai giá) | "complex billing disputes" |
+| **curation** / **curate** | **tuyển chọn**, chọn lọc nội dung | "content curation agent" |
+| **editorial** (judgment) | (quyết định) kiểu **biên tập viên**: chọn bài nào hợp chủ đề | "make editorial judgments" |
+| **exemplify** | **là ví dụ mẫu** cho | "3 modules that exemplify these patterns" |
+| **tangential** | **liên quan bên lề**: không phải chủ đề chính nhưng có ích | "valuable tangential sources" |
+| **nuance** | **sắc thái**, chi tiết nhỏ nhưng quan trọng (vd "±$7B", "methodology varies") | "losing nuance" |
+| **fabricated** | **bịa ra**, giả | "a fabricated order_id" |
+| **synthesis agent** | agent **tổng hợp** kết quả các agent khác thành 1 bản | research scenario |
+| **high-ambiguity** | **mơ hồ cao**: chưa rõ khách muốn gì | "high-ambiguity requests" |
+
 💡 **Mẹo đọc đề** (giống AIF, chỉnh cho bài này)
 1. **Đọc câu CUỐI trước**: "most effective **first step**", "most **maintainable**", "**guarantee**", "**reduce overhead while maintaining reliability**". Chữ đó quyết định đáp án.
 2. **Đọc số liệu trong đề**: "12% of cases", "85% simple / 15% complex", "40% latency". Số liệu thường chỉ thẳng vào đáp án. Vd "85% chỉ cần check fact đơn giản, 15% cần điều tra sâu" => cho 1 tool hẹp lo 85% case dễ, 15% case khó vẫn đi qua coordinator (Q9).
@@ -239,10 +253,9 @@ Thông tin từ các site bên ngoài và từ câu trả lời đầu tiên c�
 |---|---|---|---|
 | 1 | 🔴 Thứ tự domain: D2 = Claude Code, D3 = Prompt, D4 = Tool & MCP (nhiều site + câu trả lời trước của Claude) | **D2 = Tool Design & MCP (18%)**, **D3 = Claude Code (20%)**, **D4 = Prompt (20%)**. Mock test bên ngoài có thể đánh số khác => nhìn **tên** domain, đừng nhìn số | `[G §4]` |
 | 2 | 🔴 "Domain 5: học kỹ số liệu prompt caching (TTL, min token)" (Claude nói trước đó) | **Prompt caching chi tiết = OUT OF SCOPE**, chỉ cần biết nó tồn tại. D5 thực tế là escalation, error propagation, provenance, human review | `[G §17]` |
-| 3 | 🟡 "Global Premier partner miễn phí tới 31/12/2026" (site bên ngoài) | Guide chỉ nói: giá lúc checkout **đã gồm giảm giá theo partner tier**. Xem giá thật lúc checkout bằng account công ty | `[G §11]` |
-| 4 | 🟡 Thứ tự ưu tiên settings (managed > CLI > local > project > user) | **Không** có trong task statement. Guide hỏi **CLAUDE.md hierarchy**, rules, commands, skills, `.mcp.json`. Ưu tiên thấp | `[G 3.1]` |
-| 5 | 🟡 Tên tool tạo subagent | Guide gọi là **Task** tool (`allowedTools` phải có `"Task"`). Claude Code bản mới hiển thị tool này là **Agent**. **Thi theo guide: Task** *(Claude)* | `[G 1.3]` |
-| 6 | 🟡 Slash command | Guide tách `.claude/commands/` và `.claude/skills/`. Claude Code bản mới đã gộp command vào skill. **Thi theo guide** *(Claude)* | `[G 3.2]` |
+| 3 | 🟡 Thứ tự ưu tiên settings (managed > CLI > local > project > user) | **Không** có trong task statement. Guide hỏi **CLAUDE.md hierarchy**, rules, commands, skills, `.mcp.json`. Ưu tiên thấp | `[G 3.1]` |
+| 4 | 🟡 Tên tool tạo subagent | Guide gọi là **Task** tool (`allowedTools` phải có `"Task"`). Claude Code bản mới hiển thị tool này là **Agent**. **Thi theo guide: Task** *(Claude)* | `[G 1.3]` |
+| 5 | 🟡 Slash command | Guide tách `.claude/commands/` và `.claude/skills/`. Claude Code bản mới đã gộp command vào skill. **Thi theo guide** *(Claude)* | `[G 3.2]` |
 
 ---
 
@@ -829,8 +842,6 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 | 5 | 1-7/12 | Mock full #2, #3. Ôn bảng 🔁. Mock **>= 80%** ổn định => **đặt lịch thi** |
 | 6 | ~8-12/12 | **Thi lần 1**. Đọc cheatsheet sáng hôm thi |
 
-⚠️ **Đặt lịch sớm**: nếu giá miễn phí / giảm giá của công ty có **hạn chót** (vd 31/12), thi lần 1 trước **~12/12** => trượt vẫn còn **14 ngày chờ** để thi lại trong năm. Kiểm tra giá thật lúc checkout trên Partner Academy.
-
 **Ngày thi** (giống AIF)
 - Đọc `CCAR-F-CHEATSHEET.md` (10-15 phút).
 - Thi online: dọn bàn, 1 màn hình, không điện thoại / đồng hồ thông minh `[G §13]`.
@@ -848,6 +859,7 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 | 4 | [Tutorials Dojo - CCAR-F practice exams](https://portal.tutorialsdojo.com/product/claude-certified-architect-foundations-ccar-f-practice-exams/) | trả phí | 100+ câu scenario. TD có tiếng ở mảng AWS |
 | 5 | Udemy (vd [bộ này](https://www.udemy.com/course/ccar-f-claude-certified-architect-foundations-practice-test/)) | trả phí, hay giảm giá | Rất nhiều bộ, chất lượng **không đều**. Chọn bộ **mới cập nhật theo guide v1.0**, rating cao, đọc review |
 | 6 | [Anthropic Exam Pro - Kiến thức CCAR-F](https://anthropic.cloudexam.pro/kien-thuc/ccar-f) (tiếng Việt) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** (giá 2026-11-03, trang index giờ không hiện giá) | Kiểm tra 2026-11-03 + **2026-11-15** (banner: đợt đổi đề 07/12 "**trừ CCAR-F**", khớp ⚠️ đầu file; bài học ghi đối chiếu docs 02/11/2026; chi tiết thêm của bài 1.1, 2.3, 5.5 đã ghi vào mục 2.1, 3.3, 6.5 với ký hiệu `[W]`). **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên có chữ "Anthropic". Không ghi tác giả, chỉ có Facebook. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
+| 7 | Bộ mock free online (mock 1) | free (cần đăng nhập) | Làm 2026-11-18: 39/60. Câu hỏi bám guide khá sát (nhiều đáp án = ví dụ nguyên văn của guide). ⚠️ **Lời giải thích hay bịa** (chương sách không có, tên MCP sai, flag không tồn tại) => chỉ dùng **đáp án**, tự kiểm với guide. 1 đáp án sai logic (Q46). Xem log mục 10 |
 
 ⚠️ **Tránh "dump"**: site ghi "**real exam questions**" = vi phạm **NDA** (`[G §14]`) => có thể bị **hủy kết quả + cấm thi** (`[G §13]`). Bộ AIF dùng ExamTopics, nhưng với bài này **đừng dùng** site kiểu đó.
 ⚠️ Mock bên ngoài **có thể sai đáp án** (bài học từ AIF: Q6, Q71). Thấy mâu thuẫn với guide => **tin guide**, ghi ⚠️ vào mục 10.
@@ -861,13 +873,23 @@ Giống cách làm AIF-C01: **làm mock => đưa câu sai cho Claude => Claude g
 
 | # | Chủ đề | Sai ở câu | Quy tắc 1 dòng | Ôn lại |
 |---|---|---|---|---|
-| | *(điền sau mock đầu tiên)* | | | |
+| 1 | **Hỏi / điều tra trước** khi làm theo yêu cầu của khách | M1 Q8, Q29 | Khách **đòi người rõ ràng** ("real person NOW") => escalate **ngay**, kèm history. Khách bực nhưng việc agent **làm được** => ghi nhận + đề nghị giải quyết **hoặc** escalate. Cả 2: ❌ hỏi thêm / điều tra trước | 6.2 |
+| 2 | **Tóm tắt văn xuôi** làm mất dữ liệu | M1 Q18, Q56, Q37 | Dữ liệu phải giữ (ID, số tiền, status) => **structured**: chỉ giữ field cần, lớp context riêng, session mới + structured summary. ❌ prose summary, ❌ resume với tool result cũ | 6.1, 2.7 |
+| 3 | **Thiết kế error** trả cho model | M1 Q14, Q49, Q51 | Lỗi phải có: **loại**, **retry được không**, **gợi ý bước tiếp**. ❌ retry ẩn trong tool, ❌ msg ngắn + tool riêng. Request hỏng (thiếu param) => **JSON-RPC protocol error**. Tool chạy mà lỗi => **isError** | 3.2, 6.3 |
+| 4 | **Cấu hình Claude Code** (rules / @import / /memory) | M1 Q20, Q25, Q50 | File có **pattern tên** (`**/*.test.tsx`, `terraform/**`) => rules + `paths:`. **Không** có pattern, maintainer tự biết => **@import** trong CLAUDE.md từng package. Lúc theo lúc không => **/memory** trước | 4.1, 4.3 |
+| 5 | **Gộp / tách tool** | M1 Q3, Q31, Q44 | 1 tool làm **nhiều việc** (output lộn xộn) => **tách**. 2 tool **trùng nghĩa** model không phân biệt => **gộp** (hoặc rename + description). Model cần **thấy hết** để tự chọn => tool gộp trả **dữ liệu**, hành động giữ riêng | 3.1 |
+| 6 | Chọn **hook** khi có cách code **đầy đủ hơn** | M1 Q2, Q52 | Đề có nhiều đáp án deterministic => chọn cái **phủ mọi trường hợp**: kiểm tra **sau khi loop dừng** (Q2), **tool tự** tạo yêu cầu duyệt (Q52). ❌ ngưỡng tùy ý (80% max_turns), ❌ hook + flag truyền qua | 2.4 |
+| 7 | Bị hút vào **prompt caching** | M1 Q6 (nghi), Q54 | Caching = **chi phí / tốc độ**, không sửa **gốc** (gọi subagent thừa, context quá dài làm kém chất lượng). Chi tiết caching **ngoài phạm vi thi** => thường là bẫy | 0, 6.1 |
 
 ### ⚠️ Đáp án mock đã kiểm tra là SAI
 
 | Nguồn + câu | Mock ghi | Đúng theo guide |
 |---|---|---|
-| | *(điền khi gặp)* | |
+| M1 Q46 (send_notification timeout, không biết đã gửi chưa => bị gửi trùng) | A: `retry_safe: true` cho timeout | ⚠️ **Sai logic**: báo "retry an toàn" => gửi trùng **thêm**. Nên là B: báo rõ "status unknown, có thể đã gửi, **đừng retry**" (instructive error) |
+| M1 Q32 (update_user_profile thiếu `user_id`) | A: strict JSON schema | ⚠️ **Tranh cãi**: docs Anthropic nói description chi tiết là yếu tố **quan trọng nhất** (D). Mẹo: "bảo đảm / loại bỏ lỗi cấu trúc" => schema; "giúp model **hiểu** nên điền gì" => description |
+| M1 Q16 (gap phát hiện sau analysis) | C: coordinator tự dò gap rồi search lại | ⚠️ **Sát nút**: B (analysis báo gap cho coordinator, search + analysis lại tới khi đủ) cũng khớp `[G 1.2]`. Điểm chung cần nhớ: vòng lặp đi **qua coordinator** |
+| M1 Q8 (khách "want someone who can actually help") | B: đề nghị làm ngay **hoặc** escalate | ⚠️ **Xám** với `[G 5.2]` "đòi người rõ ràng => escalate ngay". Phân biệt: Q8 = bực + việc làm được; Q29 = "real person NOW" => escalate ngay |
+| M1 (giải thích nói chung) | nhiều lời giải thích của site | ⚠️ Giải thích hay **bịa**: "Chapter 7 ... 2026 Edition", MCP = "Model-Control-Plane" / "Managed Claude Platform" (thật: **Model Context Protocol**), flag `--plan`/`--run`, `/add_memory`, hook nằm trong CLAUDE.md (thật: settings.json), "Claude không load CLAUDE.md thư mục con" (sai), "LLM bypass được hook" (sai). **Chỉ tin đáp án, đừng học theo giải thích** |
 
 ### 12 câu mẫu trong guide (tóm tắt bài học, đề đầy đủ xem PDF mục 9)
 
@@ -897,3 +919,53 @@ A / B / C / D
 - ❌ A: ...
 - 🔑 Keyword: "..." => ...
 ```
+
+#### [M1] Mock 1 - 60 câu (2026-11-18): **39/60 = 65%**
+
+Site đặt đậu 72% (thi thật: 720/1000 thang điểm scaled). Câu sai: 2, 3, 7, 8, 14, 18, 20, 21, 25, 28, 29, 31, 33, 37, 44, 49, 50, 51, 52, 54, 56. Claude đã đọc **cả 60 câu** (cả câu đúng, vì có thể đúng nhờ may) và đối chiếu guide. Tóm tắt bằng lời của Claude, không chép nguyên đề.
+
+**Câu sai (21)**
+
+| Câu | Tình huống (rút gọn) | Bạn chọn | ✅ Đúng | Vì sao | Guide |
+|---|---|---|---|---|---|
+| Q2 | hết `max_turns` giữa chừng, phải **bảo đảm** mọi ca kết thúc = xong hoặc chuyển người | hook dừng ở 80% max_turns | **code kiểm tra kết quả SAU khi loop dừng**, chưa xong => code gọi `escalate_to_human` kèm context | 80% là ngưỡng tùy ý, không phủ các lý do dừng khác | 1.4 |
+| Q3 | agent gom bài viết, 18+ tool call tuần tự, cần **thấy hết** ứng viên để chọn | preview + approve theo rule cố định | **tool gộp `discover_and_analyze`** trả hết ứng viên + điểm, `add_to_collection` để riêng | rule cố định lấy mất quyền chọn của model | 3.1 |
+| Q7 | coordinator ra lệnh từng bước => subagent bỏ cuộc, kém với chủ đề mới | **classifier** "well-defined / exploratory" | **mục tiêu + tiêu chí chất lượng**, subagent tự chọn cách search | bẫy classifier; gốc là over-specification | 1.3 |
+| Q8 | khách bực "muốn người giúp được", việc trả hàng **làm được ngay** | hỏi chuyện gì chưa ổn trước | **ghi nhận bực + nói làm được ngay + đề nghị làm hoặc escalate** | không điều tra trước khi đáp ứng | 5.2 |
+| Q14 | `control_device` timeout, agent chỉ nói "không phản hồi" | msg ngắn "Device offline" + tool riêng lấy gợi ý | **isError + nguyên nhân có thể + bước khắc phục** để agent nói với user | thêm tool = thêm vòng gọi, msg vẫn thiếu thông tin | 2.2 |
+| Q18 | `lookup_order` trả 40+ field, chiếm context, sắp tra thêm 2 đơn | model viết **tóm tắt văn xuôi** | **chỉ giữ field liên quan** (items, ngày mua, hạn trả, status) | văn xuôi làm mất giá trị chính xác | 5.1 |
+| Q20 | monorepo 15 package, 3 standard, **không** có pattern tên, maintainer tự cấu hình | `.claude/rules/` + paths liệt kê từng thư mục | **`@import` đúng standard** trong CLAUDE.md từng package | không có pattern để glob; đề nói maintainer tự biết | 3.1 |
+| Q21 | MCP server có **MCP prompts** (template) ngoài tools | vào tool registry, model tự gọi | **slash command** user tự chạy | MCP: tool = model gọi, resource = dữ liệu đọc, **prompt = template user chạy** | (MCP thật) |
+| Q25 | repo IaC `/terraform` `/kubernetes`, CLAUDE.md 500 dòng, chỉ load rule hợp **loại file** | CLAUDE.md thư mục con | **`.claude/rules/` + `paths: ["terraform/**/*"]`** | = ví dụ nguyên văn của guide. (CLAUDE.md thư mục con vẫn chạy ngoài đời) | 3.3 |
+| Q28 | sau `lookup_order` (mua 45 ngày), loop quyết refund hay escalate thế nào | decision tree cấu hình sẵn | **kết quả tool vào hội thoại, model tự suy luận** | model-driven, không phải cây quyết định | 1.1 |
+| Q29 | "I want to talk to a real person **NOW**", chưa gọi tool nào | ghi nhận + hỏi 1 câu trước | **escalate ngay** kèm history | đòi người rõ ràng => không hỏi, không điều tra | 5.2 |
+| Q31 | 4 => 10 tool, sai vì **tool trùng nghĩa** (credit vs refund) | tách 2 subagent tài chính / giao hàng | **gộp tool trùng** (`resolve_compensation` + action, `lookup_order` + include_tracking) | tách subagent vẫn để 2 tool trùng chung 1 agent | 3.1 |
+| Q33 | lợi ích chính của JSON có field so với text | "model xử lý JSON **deterministic**" | **agent lấy giá trị chắc chắn, không phải parse text** | model không bao giờ deterministic (bẫy chữ) | 5.3 |
+| Q37 | khách quay lại sau 4h, session cũ có tool result "PENDING" đã cũ | resume, bỏ tool_result cũ | **session mới + structured summary + gọi tool mới trước** | câu trả lời cũ của assistant vẫn nhắc data cũ | 2.7 |
+| Q44 | 1 tool `analyze_document` + lệnh tự do => format output lung tung, 35% phải hỏi lại | description + ví dụ | **tách 3 tool có contract** (extract / summarize / verify) | = ví dụ nguyên văn guide; 1 tool nhiều việc => tách | 3.1 |
+| Q49 | `track_shipment` ném Python exception => agent nói "có trục trặc" | retry backoff trong tool | **structured error**: loại, recoverable, gợi ý (kiểm tra mã, tìm bằng số đơn) | retry chỉ cứu lỗi tạm; ID sai / không có đơn vẫn không có hướng dẫn | 3.2 |
+| Q50 | CLAUDE.md có convention nhưng lúc theo lúc không, **bước chẩn đoán đầu** | tìm rule xung đột ở `~/.claude` | **`/memory`** xem file nào đang load | `/memory` thấy luôn file user-level => bao luôn ý kia | 4.1 |
+| Q51 | MCP: (1) thiếu param bắt buộc, (2) API 404, (3) API 503 | cả 3 là `isError` | **(1) JSON-RPC protocol error**, (2)+(3) tool result `isError` | request hỏng chưa tới logic tool; tool chạy mà lỗi thì model cần biết | (MCP thật) |
+| Q52 | hoàn tiền > $500 cần quản lý duyệt, **không lách được** | PreToolUse hook thêm flag `requires_approval` | **tool tự enforce**: < $500 trả, > $500 tạo yêu cầu duyệt + trả "pending" | luật nằm ngay chỗ chi tiền, không phụ thuộc hook + flag | 2.4 |
+| Q54 | 35 lượt, 50K token, chậm + kém; 94% chỉ cần 3-5 lượt gần, 6% dễ nhắc lại | **prompt caching** + giữ hết | **sliding window 8-10 lượt**, cũ thì nhờ user nhắc lại | số liệu đề chỉ thẳng đáp án; caching không giảm context | 6.1 |
+| Q56 | 3 vấn đề trong 1 session, gần hết context, hỏi lại vấn đề đầu | **tóm tắt văn xuôi** lượt cũ | **trích issue data có cấu trúc** (ID, số tiền, status) vào lớp context riêng | = guide nguyên văn; văn xuôi mất số | 6.1 |
+
+**Câu đúng nhưng bạn còn phân vân**
+
+| Câu | Bạn nghi | Vì sao đáp án đúng thắng |
+|---|---|---|
+| Q5 (refund timeout giữa chừng) | C: retry backoff, giữ hội thoại tới khi xong | khách chờ vô hạn. ✅ A: giải thích + xác nhận đủ điều kiện + báo lỗi hệ thống + đề nghị escalate / thử lại sau |
+| Q6 (tóm tắt follow-up mất 40s) | A: prompt caching cho subagent | vẫn spawn + đẩy 80K token mỗi lần. ✅ B: coordinator tự tóm tắt bằng context đang có `[G 1.2]` |
+| Q13 (confidence của ML extraction) | A: điểm thô + few-shot dạy model đọc | vẫn để model đoán = đang hỏng. ✅ B: `request_review` boolean tính bằng **ngưỡng đã test** trong code + lý do (calibrate, 6.5) |
+| Q22 (format code lúc đúng lúc sai) | D: Stop hook + prompt kiểm tra | model chấm = xác suất. ✅ A: **PostToolUse** hook, matcher `Edit|Write`, chạy Prettier |
+| Q40 (mọi lỗi đều "Operation failed") | B: few-shot dạy đọc pattern lỗi | mọi lỗi **cùng 1 chữ** => không có pattern để học. ✅ C: thêm `errorCategory`, `isRetryable`, mô tả ở nguồn |
+| Q24, Q45, Q55 | (phân vân) | Q24: lỗi riêng từng loại + gợi ý bước tiếp. Q45: mỗi agent export **manifest**, coordinator load khi resume (6.4). Q55: subagent trả **claim-source mapping**, synthesis giữ khi gộp (6.6) |
+
+**Bài học thêm từ câu đúng**
+- Q1 vs Q52: tool trả lỗi "please escalate" (Q1-A) vẫn để model tự escalate => ❌. Tool **tự tạo yêu cầu duyệt** (Q52-A) => ✅. Gate trong tool chỉ thắng khi nó làm **trọn** hành động an toàn.
+- Q23: đề hỏi "**root cause**" agent bịa `order_id` => sửa **description** (order_id phải lấy từ `lookup_order`). Nếu đề hỏi "**guarantee**" => gate.
+- Q27 vs Q31: tool chung có **bộ tham số khác nhau** => **tách**. 2 tool **cùng một việc** => **gộp**.
+- Q59: 2 tool description 1 dòng (archive vs delete) => **mở rộng description** (giống câu mẫu Q2).
+- Q60: tool B cần dữ liệu mà tool A trả => cho tool B **nhận ID và tự tra** bên trong, bỏ chuỗi phụ thuộc.
+
+**Nhận xét chung**: sai nhiều nhất ở **D1 agent / multi-agent**, **D2 thiết kế tool + error**, **D3 cấu hình Claude Code**, **D5 context**. Kiểu sai lặp lại: chọn đáp án "**hỏi thêm / điều tra trước**", "**tóm tắt văn xuôi**", "**hook**" khi có thiết kế đầy đủ hơn, "**prompt caching**". Xem bảng 🔁.

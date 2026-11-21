@@ -27,10 +27,16 @@
 | 1 | Hỏi / điều tra trước (M1 Q8, Q29) | Khách **đòi người rõ ràng** => escalate **ngay**. Bực nhưng làm được => đề nghị làm **hoặc** escalate. ❌ hỏi thêm trước |
 | 2 | Tóm tắt văn xuôi (Q18, Q56, Q37) | Giữ dữ liệu bằng **cấu trúc**: chỉ field cần, lớp context riêng, session mới + structured summary. ❌ prose, ❌ resume với tool result cũ |
 | 3 | Error cho model (Q14, Q49, Q51) | Có **loại + retry được không + bước tiếp**. Request hỏng => JSON-RPC protocol error. Tool chạy mà lỗi => `isError` |
-| 4 | Cấu hình Claude Code (Q20, Q25, Q50) | Có **pattern tên file** => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước |
-| 5 | Gộp / tách tool (Q3, Q31, Q44) | 1 tool **nhiều việc** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng |
+| 4 | Cấu hình Claude Code (M1 Q20, Q25, Q50 · M2 Q41, Q44) | Có **pattern tên file** => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước. "**Never** sửa X" => `permissions.deny`. Checklist chỉ dùng lúc review => slash command, ❌ CLAUDE.md (luôn load) |
+| 5 | Gộp / tách tool (M1 Q3, Q31, Q44 · M2 Q7) | 1 tool **nhiều việc** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng. Tool **1 việc**, description sơ sài => **viết lại description**, ❌ tách |
 | 6 | Hook khi có cách đầy đủ hơn (Q2, Q52) | Nhiều đáp án là code => chọn cái **phủ mọi trường hợp** (kiểm tra sau khi loop dừng; tool tự tạo yêu cầu duyệt) |
 | 7 | Prompt caching (Q6, Q54) | Caching chỉ là **chi phí / tốc độ**, không sửa gốc. Chi tiết ngoài phạm vi thi => thường là **bẫy** |
+| 8 | Chia task (M2 Q5, Q12) | Bước **cố định, biết trước** => **prompt chaining**. Việc **mở**, chưa biết lỗi ở đâu => **dynamic** (vừa tìm vừa đổi kế hoạch). ❌ orchestrator-workers cho việc cố định, ❌ kế hoạch đầy đủ trước khi biết gì |
+| 9 | Làm to hơn (M2 Q13, Q50) | Output không nhất quán / case lạ bị bịa => **few-shot**. ❌ model to hơn, ❌ fine-tune, ❌ temperature 0 |
+| 10 | Context xuống cấp khi khám phá lâu (M2 Q26, Q29) | **scratchpad file** + **subagent** cho câu hỏi cụ thể. ❌ clear hết + 1 report, ❌ tóm tắt mọi file trước |
+| 11 | Chọn built-in tool + khám phá code (M2 Q6, Q17, Q38 · M3 Q11) | Grep = **nội dung** (import, error message). Glob / `find` = **tên** file. Edit không có text unique => **Read + Write**. Hiểu code: Grep **entry point** rồi theo **import / function call**. ❌ file to nhất trước, ❌ subagent chia theo service khi cần hiểu 1 luồng |
+| 12 | Iterative refinement (M2 Q37, Q48) | 1 edge case => **test case** (input + output mong muốn). Domain **lạ** => **interview pattern**. Lỗi ảnh hưởng nhau => **1 message** |
+| 13 | 1 prompt / 1 call ôm quá nhiều (M3 Q3, Q6) | Thêm cho mảng A thì mảng B tụt, hoặc output bị cắt ở `max_tokens` => **chia nhiều prompt / call nhỏ** rồi gộp. ❌ checklist trong cùng prompt, ❌ đổi sang markdown |
 
 ---
 
@@ -40,6 +46,7 @@
 |---|---|---|
 | M1 Q46 (timeout, không biết đã gửi chưa) | `retry_safe: true` | báo "**status unknown, đừng retry**" (retry => gửi trùng) |
 | M1 Q32 (thiếu `user_id`) | strict schema | ⚠️ tranh cãi: "bảo đảm cấu trúc" => schema; "giúp **hiểu**" => description |
+| M2 Q42 (3 lỗi format PDF **ảnh hưởng nhau**) | sửa **lần lượt**, test từng bước | gửi **cả 3 trong 1 message** (guide 3.5). Lần lượt = cho lỗi **độc lập** |
 | M1 (giải thích) | chương sách, flag, tên MCP bịa | chỉ tin **đáp án**, kiểm với guide (notes mục 10) |
 
 ---
@@ -99,7 +106,10 @@
 | **Explore subagent** | giao phần khám phá dài cho subagent, nó trả **tóm tắt** => context chính gọn (4.4) |
 | `/memory` vs `/compact` | `/memory` = xem **file memory nào đang load** / `/compact` = **nén context** khi đầy (4.1, 6.4) |
 | Lỗi **liên quan** vs **độc lập** | liên quan (sửa cái này ảnh hưởng cái kia) => gửi **1 message** tất cả / độc lập => sửa **lần lượt** (4.5) |
-| CI | `-p` (không treo chờ input) + `--output-format json` + `--json-schema` (output máy đọc được) (4.6) |
+| `permissions.deny` vs CLAUDE.md vs hook | "**never** sửa `db/migrations/`" => `permissions.deny` (chặn cứng) / "**prefer** module logging" => CLAUDE.md (lời dặn) / "**sau mỗi lần** edit chạy Prettier" => PostToolUse hook. `.claude/rules/` vẫn chỉ là lời dặn (M2 Q41) |
+| `--system-prompt` vs `--append-system-prompt` | `--system-prompt` = **thay toàn bộ** system prompt mặc định của Claude Code (mất phần hướng dẫn dùng tool đọc file) / `--append-system-prompt` = **thêm** vào cuối, giữ mặc định (M2 Q47) |
+| CI | `-p` (không treo chờ input) + `--output-format json` + `--json-schema` (output máy đọc được). `--max-turns` + `--max-budget-usd` = Claude Code **tự dừng** khi đủ lượt / tiền (≠ timeout của job). `--bare` = bỏ auto-discovery => khởi động nhanh, kèm `--append-system-prompt-file ./CLAUDE.md` để giữ chuẩn team (4.6, M3 Q8, Q14) |
+| **REVIEW.md** vs **CLAUDE.md** | REVIEW.md = rule **chỉ cho** Code Review managed (GitHub App): path bỏ qua, check bắt buộc. CLAUDE.md = convention cho **mọi** việc, cả `/code-review` local (4.6, M3 Q1, Q13) |
 | Tự review vs **phiên độc lập** | phiên vừa viết code tự review = **kém** (còn nhớ lý luận cũ, ít nghi ngờ). Phiên **mới** review = **tốt hơn** (4.6, 5.6) |
 
 **Prompt + output (D4)**
@@ -125,6 +135,7 @@
 | Crash recovery | mỗi agent ghi trạng thái ra file cố định (**manifest**), coordinator đọc file đó khi chạy lại (6.4) |
 | 97% tổng thể, đã tự động hóa được chưa? | con số tổng có thể che 1 loại tài liệu kém => đo **riêng từng loại tài liệu + từng field**, lấy mẫu kiểm tra **chia theo nhóm** (stratified sampling) (6.5) |
 | Confidence | confidence **từng field**, calibrate với **dữ liệu có đáp án đúng** => chọn cái đưa người xem. ❌ agent tự chấm 1-10 thô để escalate (Q3). ❌ chỉnh ngưỡng theo điểm tổng (6.5) |
+| **Random sampling** vs **route theo confidence** | random / stratified sampling = để **đo** error rate, bắt lỗi kiểu mới (M2 Q15). Sức người có hạn, chọn cái đưa người xem => **confidence thấp / tài liệu mơ hồ** (M2 Q18, Q57) (6.5) |
 | 2 nguồn **mâu thuẫn** | giữ **cả 2** + ghi nguồn + **ngày** (khác nhau có thể do thời gian). ❌ tự chọn 1 (6.6) |
 
 ---

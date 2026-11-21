@@ -215,6 +215,7 @@ Mỗi luật: **dấu hiệu trong đề** => **chọn gì** => **vì sao**. G�
 | **stratified sampling** | lấy mẫu kiểm tra **chia theo nhóm** (nhóm nào cũng có mẫu), không bốc ngẫu nhiên chung | loại viết tay chỉ 5% vẫn được lấy đủ mẫu |
 | **progressive summarization** | tóm tắt hội thoại dài **dần dần**, mỗi lần tóm lại bản tóm cũ => dễ mất số liệu | |
 | **case facts block** | khối **dữ kiện cố định** (số tiền, ngày, mã đơn), gửi kèm **mọi** prompt, **không** đem đi tóm tắt | |
+| **sliding window** | chỉ gửi **N lượt chat mới nhất**, bỏ lượt cũ; do **code app** làm, không phải setting (xem 6.1) | chat 35 lượt nhưng mỗi request chỉ gửi 10 lượt cuối |
 | **scratchpad file** | file **nháp** agent ghi findings để đọc lại sau | |
 | **manifest** | file ghi **trạng thái** công việc, dùng để chạy tiếp sau crash | |
 | **SLA** | **cam kết thời gian** trả kết quả | "có kết quả trong 30 giờ" |
@@ -596,6 +597,11 @@ claude -p "Review this PR for bugs and security issues" \
 - Session vừa **sinh code** review code đó **kém hơn** 1 instance **độc lập**.
 - Review lại sau commit mới: đưa **findings cũ** vào context, dặn chỉ báo lỗi **mới / chưa sửa** => không comment trùng.
 - Sinh test: đưa **file test có sẵn** vào context => không đề xuất test trùng.
+- Flag CI khác *(Claude, đã kiểm docs Claude Code 2026-11-21; mock M3 có hỏi)*:
+  - `--max-turns N` + `--max-budget-usd X` (chỉ ở `-p`) => **Claude Code tự dừng** khi đủ số lượt / đủ tiền ước tính. ≠ `timeout-minutes` của job CI (runner chặn, không giới hạn tiền) (M3 Q8).
+  - `--bare` => bỏ auto-discovery (hooks, skills, plugins, MCP, CLAUDE.md) => khởi động **nhanh**. Vẫn cần chuẩn team => thêm `--append-system-prompt-file ./CLAUDE.md` (M3 Q14).
+  - `--system-prompt` / `--system-prompt-file` = **thay** prompt mặc định của Claude Code (mất phần hướng dẫn dùng tool đọc file). `--append-system-prompt` / `--append-system-prompt-file` = **thêm** vào cuối, giữ mặc định (M2 Q47, M3 Q14).
+- **REVIEW.md** (gốc repo) = rule **chỉ cho** Code Review managed (chạy qua Claude GitHub App, không cần workflow file): path bỏ qua, check bắt buộc, yêu cầu bằng chứng. Đọc từ **base branch**, không từ PR. `/code-review` chạy local **không** đọc REVIEW.md, chỉ theo CLAUDE.md => rule cần cho cả 2 nơi để ở CLAUDE.md (M3 Q1) *(Claude, đã kiểm docs 2026-11-21)*.
 
 ---
 
@@ -689,6 +695,7 @@ claude -p "Review this PR for bugs and security issues" \
 | Tool result **dài** (40+ field, chỉ cần 5) chiếm token | **cắt bớt**, chỉ giữ field liên quan **trước khi** đưa vào context |
 | Multi-issue session | lưu dữ liệu từng issue (order ID, số tiền, status) vào **lớp context riêng** |
 | Agent sau có ít context | agent trước trả **structured data** (key facts, citation, relevance score), không trả văn dài + reasoning |
+| Hội thoại dài => chậm + kém, lượt cũ **hiếm khi cần** + khách dễ nói lại | **sliding window**: chỉ gửi **N lượt mới nhất** (xem **Sliding window** bên dưới). Lượt cũ có số quan trọng => case facts block, không bỏ |
 
 **Case facts block: ví dụ cụ thể** *(Claude)*
 
@@ -722,6 +729,51 @@ Customer is frustrated about two delayed orders...
 - 🧭 Đề: "summary làm mất số tiền / ngày / kỳ vọng của khách" => **case facts block**. ❌ "tóm tắt kỹ hơn", ❌ "dùng model context dài hơn".
 
 - API là **stateless**: mỗi request phải gửi **đủ lịch sử hội thoại** *(Claude: đây là ý "passing complete conversation history")*.
+
+**Sliding window: cách hoạt động** *(Claude)*
+
+- **Không phải setting** của API hay của agent. Là pattern do **code app của bạn** làm. (Vài framework bên thứ 3 gói sẵn thành option "giữ k message cuối", bên trong vẫn là đoạn code như dưới.)
+- Vì API **stateless** (dòng trên): mỗi request app tự gửi cả list `messages` => app tự quyết gửi gì.
+  - Bình thường: gửi **hết** các lượt => list dài ra mỗi lượt (35 lượt = 50K token).
+  - Sliding window: app vẫn **lưu đủ** lịch sử ở chỗ của nó (DB, memory), nhưng trước mỗi request chỉ **chọn N lượt mới nhất** để gửi.
+- Hình dung (window = 3), cửa sổ "trượt" lên 1 lượt mỗi lần:
+
+```text
+Lịch sử đầy đủ (trong DB):  T1 T2 T3 T4 T5 T6  + câu hỏi mới
+Gửi cho Claude:                      T4 T5 T6  + câu hỏi mới
+Request sau:                            T5 T6 T7  + câu hỏi mới
+```
+
+- Phác thảo code (đơn giản hóa):
+
+```python
+WINDOW = 10   # keep the last 10 turns
+
+def build_request(system_prompt, case_facts, turns, new_question):
+    messages = []
+    for user_msg, reply in turns[-WINDOW:]:      # only the last N turns
+        messages.append({"role": "user", "content": user_msg})
+        messages.append({"role": "assistant", "content": reply})
+    messages.append({"role": "user", "content": new_question})
+    return {
+        "system": system_prompt + "\n" + case_facts,   # always sent, never cut
+        "messages": messages,
+    }
+```
+
+- 2 luật khi build:
+  - Chỉ cắt ở **ranh giới lượt**: không tách message của khách khỏi câu trả lời, không tách tool call khỏi tool result (API từ chối `tool_result` mà thiếu `tool_use` đi kèm).
+  - Thứ **không được mất** (system prompt, case facts) nằm **ngoài** window => lần nào cũng gửi.
+- Dễ nhầm với tính năng có sẵn (không cái nào là "giữ N lượt cuối"):
+
+| Cách | Nằm ở đâu | Context cũ bị làm gì |
+|---|---|---|
+| **Sliding window** | code của bạn | **bỏ hẳn** lượt cũ, giữ N lượt mới nhất |
+| **Compaction** | Claude API (beta); Claude Code / Agent SDK: auto-compact + `/compact` | **tóm tắt** khi context to |
+| **Context editing** | Claude API (beta) | **xóa** tool result cũ (hoặc thinking block); chữ chat vẫn giữ |
+| **Case facts block** | code của bạn | **chép riêng** dữ kiện quan trọng, gửi mọi lần |
+
+- 🧭 Thi: không hỏi cách build, chỉ cần nhận ra. ✅ khi đề nói lượt cũ **hiếm khi cần** + **dễ lấy lại** (M1 Q54). ❌ khi lượt cũ có **số phải giữ** (M1 Q56 => case facts block).
 
 ### 6.2 Escalation + xử lý mơ hồ `[G 5.2]`
 
@@ -858,7 +910,7 @@ Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + k
 | 4 | Bộ practice exam trả phí (cùng nhà với #2) | trả phí | 100+ câu scenario |
 | 5 | Khóa luyện đề trên nền tảng khóa học online | trả phí, hay giảm giá | Rất nhiều bộ, chất lượng **không đều**. Chọn bộ **mới cập nhật theo guide v1.0**, rating cao, đọc review |
 | 6 | Site học tiếng Việt (bài học + khóa luyện đề) | bài học: xem được không cần đăng nhập. Khóa luyện đề: **280.000đ**, có thử **10 câu** (giá 2026-11-03, trang index giờ không hiện giá) | Kiểm tra 2026-11-03 + **2026-11-15** (banner: đợt đổi đề 07/12 "**trừ CCAR-F**", khớp ⚠️ đầu file; bài học ghi đối chiếu docs 02/11/2026; chi tiết thêm của bài 1.1, 2.3, 5.5 đã ghi vào mục 2.1, 3.3, 6.5 với ký hiệu `[W]`). **30 bài = đúng 30 task statement**, **đúng thứ tự domain** của guide (D2 = Tool & MCP). Bài 1.1 khớp guide (stop_reason, 3 anti-pattern), có thêm chi tiết API **ngoài phạm vi thi** (các `stop_reason` khác, lỗi 400) => đọc lướt. ⚠️ **Không phải của Anthropic** dù tên trang có chữ "Anthropic". Không ghi tác giả. Quảng cáo "**bám sát đề thi thật**": nếu thấy câu hỏi giống **y nguyên** đề thật => dừng (NDA) |
-| 7 | Bộ mock free online (mock 1) | free (cần đăng nhập) | Làm 2026-11-18: 39/60. Câu hỏi bám guide khá sát (nhiều đáp án = ví dụ nguyên văn của guide). ⚠️ **Lời giải thích hay bịa** (chương sách không có, tên MCP sai, flag không tồn tại) => chỉ dùng **đáp án**, tự kiểm với guide. 1 đáp án sai logic (Q46). Xem log mục 10 |
+| 7 | Bộ mock free online (mock 1, 2, 3) | free (cần đăng nhập) | M1 2026-11-18: 39/60. M2 (bộ thứ 2 cùng site) 2026-11-21: 37/60. M3 (bộ thứ 3, chỉ **14 câu**) 2026-11-21: 10/14. Câu hỏi bám guide khá sát (nhiều đáp án = ví dụ nguyên văn của guide). ⚠️ **Lời giải thích hay bịa** (chương sách không có, tên MCP sai, flag không tồn tại) => chỉ dùng **đáp án**, tự kiểm với guide. Đáp án sai: M1 Q46, M2 Q42. Xem log mục 10 |
 
 ⚠️ **Tránh "dump"**: site ghi "**real exam questions**" = vi phạm **NDA** (`[G §14]`) => có thể bị **hủy kết quả + cấm thi** (`[G §13]`). **Đừng dùng** site kiểu đó.
 ⚠️ Mock bên ngoài **có thể sai đáp án**. Thấy mâu thuẫn với guide => **tin guide**, ghi ⚠️ vào mục 10.
@@ -875,10 +927,16 @@ Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + k
 | 1 | **Hỏi / điều tra trước** khi làm theo yêu cầu của khách | M1 Q8, Q29 | Khách **đòi người rõ ràng** ("real person NOW") => escalate **ngay**, kèm history. Khách bực nhưng việc agent **làm được** => ghi nhận + đề nghị giải quyết **hoặc** escalate. Cả 2: ❌ hỏi thêm / điều tra trước | 6.2 |
 | 2 | **Tóm tắt văn xuôi** làm mất dữ liệu | M1 Q18, Q56, Q37 | Dữ liệu phải giữ (ID, số tiền, status) => **structured**: chỉ giữ field cần, lớp context riêng, session mới + structured summary. ❌ prose summary, ❌ resume với tool result cũ | 6.1, 2.7 |
 | 3 | **Thiết kế error** trả cho model | M1 Q14, Q49, Q51 | Lỗi phải có: **loại**, **retry được không**, **gợi ý bước tiếp**. ❌ retry ẩn trong tool, ❌ msg ngắn + tool riêng. Request hỏng (thiếu param) => **JSON-RPC protocol error**. Tool chạy mà lỗi => **isError** | 3.2, 6.3 |
-| 4 | **Cấu hình Claude Code** (rules / @import / /memory) | M1 Q20, Q25, Q50 | File có **pattern tên** (`**/*.test.tsx`, `terraform/**`) => rules + `paths:`. **Không** có pattern, maintainer tự biết => **@import** trong CLAUDE.md từng package. Lúc theo lúc không => **/memory** trước | 4.1, 4.3 |
-| 5 | **Gộp / tách tool** | M1 Q3, Q31, Q44 | 1 tool làm **nhiều việc** (output lộn xộn) => **tách**. 2 tool **trùng nghĩa** model không phân biệt => **gộp** (hoặc rename + description). Model cần **thấy hết** để tự chọn => tool gộp trả **dữ liệu**, hành động giữ riêng | 3.1 |
+| 4 | **Cấu hình Claude Code** (rules / @import / /memory / permissions / command) | M1 Q20, Q25, Q50 · M2 Q41, Q44 | File có **pattern tên** (`**/*.test.tsx`, `terraform/**`) => rules + `paths:`. **Không** có pattern, maintainer tự biết => **@import** trong CLAUDE.md từng package. Lúc theo lúc không => **/memory** trước. "**Never** sửa thư mục X" => `permissions.deny` (rules vẫn chỉ là lời dặn). Checklist chỉ dùng **lúc review** => slash command / skill, ❌ CLAUDE.md (luôn load, tốn context mọi task) | 4.1, 4.2, 4.3 |
+| 5 | **Gộp / tách tool** | M1 Q3, Q31, Q44 · M2 Q7 | 1 tool làm **nhiều việc** (output lộn xộn) => **tách**. 2 tool **trùng nghĩa** model không phân biệt => **gộp** (hoặc rename + description). Model cần **thấy hết** để tự chọn => tool gộp trả **dữ liệu**, hành động giữ riêng. Tool làm **1 việc** mà description sơ sài (model dùng Grep thay vì nó) => **viết lại description**, ❌ tách nhỏ | 3.1, 3.4 |
 | 6 | Chọn **hook** khi có cách code **đầy đủ hơn** | M1 Q2, Q52 | Đề có nhiều đáp án deterministic => chọn cái **phủ mọi trường hợp**: kiểm tra **sau khi loop dừng** (Q2), **tool tự** tạo yêu cầu duyệt (Q52). ❌ ngưỡng tùy ý (80% max_turns), ❌ hook + flag truyền qua | 2.4 |
 | 7 | Bị hút vào **prompt caching** | M1 Q6 (nghi), Q54 | Caching = **chi phí / tốc độ**, không sửa **gốc** (gọi subagent thừa, context quá dài làm kém chất lượng). Chi tiết caching **ngoài phạm vi thi** => thường là bẫy | 0, 6.1 |
+| 8 | **Chia task**: chaining / dynamic / orchestrator | M2 Q5, Q12 | Các bước **cố định, biết trước** (mọi PR đều review style => security => docs) => **prompt chaining**. Việc **mở**, chưa biết lỗi ở đâu (lỗi 500 lúc có lúc không, 200 file) => **dynamic**: vừa tìm vừa đổi kế hoạch. ❌ orchestrator-workers cho việc cố định (LLM "tự quyết cần check gì" là thừa), ❌ lập kế hoạch đầy đủ trước khi biết gì | 2.6 |
+| 9 | **Làm to hơn** khi output không nhất quán | M2 Q13, Q50 | Format lúc thế này lúc thế kia, case lạ bị bịa / bỏ trống => **few-shot** 2-3 ví dụ đúng cách. ❌ model to hơn, ❌ fine-tune (không thi), ❌ temperature 0 (không dạy được format) | 5.2 |
+| 10 | **Context xuống cấp** khi khám phá lâu | M2 Q26, Q29 | Dấu hiệu: trả lời không nhất quán, "typical patterns", dev phải nhắc lại => **scratchpad file** ghi findings, **subagent** cho câu hỏi cụ thể ("tìm mọi test file"), summary **inject** vào subagent mới (M2 Q8 ✅). ❌ clear hết context + chỉ giữ 1 report, ❌ tóm tắt mọi file **trước** khi biết cái gì quan trọng | 6.4 |
+| 11 | **Chọn built-in tool** + khám phá code | M2 Q6, Q17, Q38 · M3 Q11 | Grep = tìm **nội dung** (import, error message). Glob / `find` = tìm **tên** file. Edit không tìm được text unique => **Read + Write** (❌ `replace_all`: chèn vào **mọi** chỗ khớp). Hiểu code lạ: Grep tìm **entry point**, rồi đi theo **import / function call / class gốc**. ❌ đọc file **to nhất** trước, ❌ subagent chia theo **service** khi cần hiểu **1 luồng** (auth) xuyên service | 3.5 |
+| 12 | **Iterative refinement** (sửa dần với Claude Code) | M2 Q37, Q48 (+ Q42 ⚠️) | Sửa 1 edge case => đưa **test case** (input + output mong muốn). Domain **lạ** (lần đầu làm cache production) => **interview pattern**: để Claude hỏi bạn trước. Lỗi **ảnh hưởng nhau** => gửi **1 message**. ❌ mô tả bằng lời rồi bắt viết lại cả file | 4.5 |
+| 13 | **1 prompt / 1 call ôm quá nhiều** | M3 Q3, Q6 | Dấu hiệu: thêm ví dụ cho mảng A thì mảng B **tụt**, hoặc output dài bị **cắt** ở `max_tokens` => **chia thành nhiều prompt / call nhỏ** (theo loại vấn đề, theo nhóm file), rồi **gộp** kết quả. ❌ thêm checklist vào **cùng** prompt, ❌ đổi sang markdown, ❌ model to hơn | 5.6 |
 
 ### ⚠️ Đáp án mock đã kiểm tra là SAI
 
@@ -888,6 +946,8 @@ Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + k
 | M1 Q32 (update_user_profile thiếu `user_id`) | A: strict JSON schema | ⚠️ **Tranh cãi**: docs Anthropic nói description chi tiết là yếu tố **quan trọng nhất** (D). Mẹo: "bảo đảm / loại bỏ lỗi cấu trúc" => schema; "giúp model **hiểu** nên điền gì" => description |
 | M1 Q16 (gap phát hiện sau analysis) | C: coordinator tự dò gap rồi search lại | ⚠️ **Sát nút**: B (analysis báo gap cho coordinator, search + analysis lại tới khi đủ) cũng khớp `[G 1.2]`. Điểm chung cần nhớ: vòng lặp đi **qua coordinator** |
 | M1 Q8 (khách "want someone who can actually help") | B: đề nghị làm ngay **hoặc** escalate | ⚠️ **Xám** với `[G 5.2]` "đòi người rõ ràng => escalate ngay". Phân biệt: Q8 = bực + việc làm được; Q29 = "real person NOW" => escalate ngay |
+| M2 Q42 (PDF report: cột hẹp, ngày sai format, ngắt trang sai, 3 lỗi **ảnh hưởng nhau**) | B: sửa **lần lượt** (cột => ngày => ngắt trang), test sau mỗi bước | ⚠️ **Sai theo guide 3.5**: lỗi **ảnh hưởng nhau** => gửi **cả 3 trong 1 message** (C, bạn chọn). Sửa lần lượt = cho lỗi **độc lập** (mục 4.5) |
+| M2 (giải thích) | Q47 nói `--allowedTools` "không tồn tại"; Q49 gộp 2 đáp án thành 1 dòng | flag `--allowedTools` **có thật** (đáp án Q47 vẫn đúng). Q49 lỗi hiển thị của site, đáp án vẫn chấm được |
 | M1 (giải thích nói chung) | nhiều lời giải thích của site | ⚠️ Giải thích hay **bịa**: "Chapter 7 ... 2026 Edition", MCP = "Model-Control-Plane" / "Managed Claude Platform" (thật: **Model Context Protocol**), flag `--plan`/`--run`, `/add_memory`, hook nằm trong CLAUDE.md (thật: settings.json), "Claude không load CLAUDE.md thư mục con" (sai), "LLM bypass được hook" (sai). **Chỉ tin đáp án, đừng học theo giải thích** |
 
 ### 12 câu mẫu trong guide (tóm tắt bài học, đề đầy đủ xem PDF mục 9)
@@ -946,7 +1006,7 @@ Site đặt đậu 72% (thi thật: 720/1000 thang điểm scaled). Câu sai: 2,
 | Q50 | CLAUDE.md có convention nhưng lúc theo lúc không, **bước chẩn đoán đầu** | tìm rule xung đột ở `~/.claude` | **`/memory`** xem file nào đang load | `/memory` thấy luôn file user-level => bao luôn ý kia | 4.1 |
 | Q51 | MCP: (1) thiếu param bắt buộc, (2) API 404, (3) API 503 | cả 3 là `isError` | **(1) JSON-RPC protocol error**, (2)+(3) tool result `isError` | request hỏng chưa tới logic tool; tool chạy mà lỗi thì model cần biết | (MCP thật) |
 | Q52 | hoàn tiền > $500 cần quản lý duyệt, **không lách được** | PreToolUse hook thêm flag `requires_approval` | **tool tự enforce**: < $500 trả, > $500 tạo yêu cầu duyệt + trả "pending" | luật nằm ngay chỗ chi tiền, không phụ thuộc hook + flag | 2.4 |
-| Q54 | 35 lượt, 50K token, chậm + kém; 94% chỉ cần 3-5 lượt gần, 6% dễ nhắc lại | **prompt caching** + giữ hết | **sliding window 8-10 lượt**, cũ thì nhờ user nhắc lại | số liệu đề chỉ thẳng đáp án; caching không giảm context | 6.1 |
+| Q54 | chat support 35 lượt (~50K token) => trả lời chậm + kém. Đề cho số: 94% câu hỏi chỉ cần 3-5 lượt gần nhất, 6% còn lại khách dễ nói lại | **prompt caching** + vẫn gửi hết lịch sử | **sliding window**: mỗi request chỉ gửi 8-10 lượt mới nhất; cần chi tiết cũ thì nhờ khách nói lại | caching chỉ làm **rẻ + nhanh** hơn, model **vẫn đọc đủ 50K token** => vẫn kém. Số liệu đề = bỏ lượt cũ an toàn. Xem **Giải thích kỹ** bên dưới | 6.1 |
 | Q56 | 3 vấn đề trong 1 session, gần hết context, hỏi lại vấn đề đầu | **tóm tắt văn xuôi** lượt cũ | **trích issue data có cấu trúc** (ID, số tiền, status) vào lớp context riêng | = guide nguyên văn; văn xuôi mất số | 6.1 |
 
 **Câu đúng nhưng bạn còn phân vân**
@@ -956,9 +1016,108 @@ Site đặt đậu 72% (thi thật: 720/1000 thang điểm scaled). Câu sai: 2,
 | Q5 (refund timeout giữa chừng) | C: retry backoff, giữ hội thoại tới khi xong | khách chờ vô hạn. ✅ A: giải thích + xác nhận đủ điều kiện + báo lỗi hệ thống + đề nghị escalate / thử lại sau |
 | Q6 (tóm tắt follow-up mất 40s) | A: prompt caching cho subagent | vẫn spawn + đẩy 80K token mỗi lần. ✅ B: coordinator tự tóm tắt bằng context đang có `[G 1.2]` |
 | Q13 (confidence của ML extraction) | A: điểm thô + few-shot dạy model đọc | vẫn để model đoán = đang hỏng. ✅ B: `request_review` boolean tính bằng **ngưỡng đã test** trong code + lý do (calibrate, 6.5) |
-| Q22 (format code lúc đúng lúc sai) | D: Stop hook + prompt kiểm tra | model chấm = xác suất. ✅ A: **PostToolUse** hook, matcher `Edit|Write`, chạy Prettier |
+| Q22 (format code lúc đúng lúc sai) | D: Stop hook + prompt nhờ model kiểm tra format | D vẫn để **model chấm** = xác suất => vẫn lúc đúng lúc sai. ✅ A: **PostToolUse** hook, matcher `Edit\|Write`, chạy **Prettier** (chương trình, lần nào cũng ra giống nhau) ngay sau mỗi lần sửa file. Xem **Giải thích kỹ** |
 | Q40 (mọi lỗi đều "Operation failed") | B: few-shot dạy đọc pattern lỗi | mọi lỗi **cùng 1 chữ** => không có pattern để học. ✅ C: thêm `errorCategory`, `isRetryable`, mô tả ở nguồn |
-| Q24, Q45, Q55 | (phân vân) | Q24: lỗi riêng từng loại + gợi ý bước tiếp. Q45: mỗi agent export **manifest**, coordinator load khi resume (6.4). Q55: subagent trả **claim-source mapping**, synthesis giữ khi gộp (6.6) |
+| Q24 (thiết kế lỗi của tool) | (phân vân) | mỗi **loại lỗi** trả lỗi **riêng** (timeout, không tìm thấy, không có quyền...) + **gợi ý bước tiếp** => agent biết nên thử lại, hỏi khách hay escalate. ❌ 1 câu lỗi chung cho mọi trường hợp (3.2) |
+| Q45 (multi-agent dừng giữa chừng, cần chạy tiếp) | (phân vân) | mỗi agent ghi **trạng thái** (xong gì, tìm được gì, còn gì) ra file ở **chỗ cố định** = **manifest**. Resume => coordinator **đọc manifest**, đưa vào prompt => chạy tiếp, không làm lại từ đầu (6.4) |
+| Q55 (report cuối mất nguồn) | (phân vân) | subagent trả **từng claim kèm nguồn** (URL / tên tài liệu, trích đoạn, ngày) = **claim-source mapping**; synthesis agent **giữ** liên kết đó khi gộp. Subagent trả văn xuôi => nguồn mất **trước** khi tới synthesis (6.6) |
+
+**Giải thích kỹ: Q54, Q22, Q24, Q45, Q55** *(Claude)*
+
+Q24, Q45, Q55: đề gốc không lưu lại, chỉ còn đáp án => phần dưới giải thích ý chính, không phải đề nguyên văn.
+
+**Q54: chat dài thì chậm + kém => sliding window, không phải prompt caching**
+- Tình huống: chat support 35 lượt (~50K token), trả lời chậm, chất lượng giảm. Đề cho 2 con số: **94%** câu hỏi chỉ cần **3-5 lượt gần nhất**; **6%** còn lại khách **dễ nói lại** thông tin cũ.
+- Bạn chọn: prompt caching + vẫn gửi hết lịch sử. ✅ Đúng: **sliding window**: mỗi request chỉ gửi **8-10 lượt mới nhất**, cần chi tiết cũ thì nhờ khách nói lại.
+- Vì sao:
+  - Prompt caching = phần đầu prompt **giống hệt** lần trước thì xử lý **rẻ + nhanh** hơn. Nhưng model **vẫn đọc đủ 50K token**. Cái làm kém là **quá nhiều chữ cũ không liên quan** (lost in the middle, nhiễu). Caching không bỏ được token nào.
+  - 2 con số là gợi ý: lượt cũ gần như không cần, khi cần thì cách lấy lại rất rẻ (khách nói lại). Giữ 8-10 lượt trong khi chỉ cần 3-5 => có dư an toàn.
+  - **Sliding window** (cửa sổ trượt) = chỉ giữ N lượt mới nhất. Có lượt mới => bỏ lượt cũ nhất, như cái cửa sổ trượt dọc theo cuộc chat. Do **code app** làm, không phải setting: xem **Sliding window: cách hoạt động** ở 6.1.
+- Ví dụ: lượt 2 "Đơn của tôi đâu?" ... lượt 34 "Đổi mật khẩu thế nào?". Trả lời lượt 34 không cần lượt 2.
+- ⚠️ Đừng dùng bừa: Q56 nhìn giống nhưng đáp án khác. Lượt cũ có **số quan trọng** (mã đơn, $89.99, status refund) => **không** bỏ, trích vào **case facts block** (6.1). Q54 đúng là sliding window chỉ vì đề nói rõ chi tiết cũ hiếm khi cần + lấy lại dễ.
+- 🧭 Luật: vấn đề là "**context quá dài**" => làm context **nhỏ lại**. Caching = sửa **chi phí / tốc độ**, không sửa **độ dài context** (🔁 dòng 7).
+
+**Q22: format lúc đúng lúc sai => PostToolUse hook chạy Prettier**
+- Tình huống: Claude Code sửa file, lúc theo format của team, lúc không. Muốn đúng **mọi lần**.
+- Bạn phân vân: D: Stop hook + prompt nhờ model kiểm tra format. ✅ Đúng: A: **PostToolUse** hook, matcher `Edit|Write`, chạy **Prettier**.
+- Vì sao:
+  - D vẫn để **model chấm** => xác suất => có lúc sót. Đúng y vấn đề ban đầu.
+  - Prettier là chương trình bình thường: cùng input => cùng output, **lần nào cũng vậy** (deterministic, xem 📖).
+  - PostToolUse chạy **ngay sau mỗi tool call**. Matcher `Edit|Write` = chỉ chạy sau khi file bị sửa / ghi => file nào đổi cũng được format ngay, model không cần nhớ gì.
+  - Stop hook chỉ chạy **1 lần** khi Claude trả lời xong cả lượt => muộn, và phần prompt vẫn là model đoán.
+- Ví dụ `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- 🧭 Luật: "phải xảy ra **mọi lần**" + có **công cụ** làm được => hook chạy công cụ đó (code). ❌ nhờ model kiểm tra.
+- ⚠️ So với 🔁 dòng 6 (Q2, Q52): hook **thắng** prompt / model chấm. Nhưng hook **thua** một thiết kế code **đầy đủ hơn** (tool tự enforce, kiểm tra sau khi loop dừng).
+
+**Q24: lỗi của tool => lỗi riêng cho từng loại + bước tiếp theo**
+- Cùng bài học với Q14, Q40, Q49 (🔁 dòng 3).
+- ❌ Mọi lỗi đều trả `"Operation failed"` => agent không phân biệt được timeout với sai mã => chỉ nói được "có trục trặc".
+- ✅ Mỗi loại lỗi 1 kiểu riêng, kèm gợi ý làm gì tiếp:
+
+```json
+{ "isError": true, "errorCategory": "not_found", "isRetryable": false,
+  "message": "No shipment for tracking ID TR-99. Ask the customer to check the ID, or search by order number." }
+```
+
+```json
+{ "isError": true, "errorCategory": "timeout", "isRetryable": true,
+  "message": "Carrier API timed out. Safe to retry in a few seconds." }
+```
+
+- Agent đọc là biết: timeout => thử lại. Không tìm thấy => hỏi khách. Không có quyền => escalate.
+
+**Q45: multi-agent dừng giữa chừng => manifest**
+- Tình huống: nhiều agent cùng làm 1 việc dài, hệ thống crash / bị dừng. Khi resume, không muốn làm lại từ đầu.
+- ✅ Mỗi agent ghi **trạng thái** ra file ở **chỗ cố định** (= **manifest**): xong gì, tìm được gì, còn gì. Khi resume, coordinator **đọc các manifest** và đưa vào prompt => mỗi agent chạy tiếp từ chỗ đã dừng.
+- Ví dụ manifest của 1 agent:
+
+```json
+{
+  "agent": "find-test-files",
+  "status": "partial",
+  "done": ["src/payments", "src/orders"],
+  "todo": ["src/users"],
+  "findings": ["RefundService has no tests"]
+}
+```
+
+- 🎮 Giống **file save** trong game: thua thì load save, không chơi lại từ màn 1. Memory files + MEMORY.md của Claude Code cũng làm vậy (6.4).
+- ❌ Ý sai hay gặp: làm lại từ đầu (phí hết việc đã làm); trông vào lịch sử chat cũ (có thể mất sau crash, lại dài + rối).
+
+**Q55: report cuối mất nguồn => claim-source mapping**
+- Tình huống: subagent đi tìm nguồn (web, tài liệu), synthesis agent gộp thành 1 report. Đọc report cuối không biết fact nào lấy từ nguồn nào.
+- ✅ (1) Subagent trả **từng claim kèm nguồn** (URL / tên tài liệu, trích đoạn ngắn, ngày) = **claim-source mapping**. (2) Synthesis agent **giữ** liên kết đó khi gộp, không viết lại thành văn xuôi mất nguồn.
+- Vì sao: subagent chỉ trả tóm tắt văn xuôi => nguồn mất **trước** khi tới synthesis, sau đó không ai lấy lại được => sửa ở **output của subagent**, rồi giữ nguyên khi gộp.
+- Ví dụ output của subagent:
+
+```json
+[
+  { "claim": "Market grew 12% in 2025",
+    "source": "Industry report 2026, p.4",
+    "quote": "...revenue rose 12% year over year...",
+    "date": "2026-03" }
+]
+```
+
+- Thêm (6.6): 2 nguồn uy tín **mâu thuẫn** => giữ **cả 2** kèm nguồn, ❌ tự chọn 1.
+
+🧭 **Điểm chung**: Q24, Q45, Q55 (và Q56) cùng 1 luật: **truyền dữ liệu có cấu trúc, không truyền văn xuôi** (🔁 dòng 2).
 
 **Bài học thêm từ câu đúng**
 - Q1 vs Q52: tool trả lỗi "please escalate" (Q1-A) vẫn để model tự escalate => ❌. Tool **tự tạo yêu cầu duyệt** (Q52-A) => ✅. Gate trong tool chỉ thắng khi nó làm **trọn** hành động an toàn.
@@ -968,3 +1127,106 @@ Site đặt đậu 72% (thi thật: 720/1000 thang điểm scaled). Câu sai: 2,
 - Q60: tool B cần dữ liệu mà tool A trả => cho tool B **nhận ID và tự tra** bên trong, bỏ chuỗi phụ thuộc.
 
 **Nhận xét chung**: sai nhiều nhất ở **D1 agent / multi-agent**, **D2 thiết kế tool + error**, **D3 cấu hình Claude Code**, **D5 context**. Kiểu sai lặp lại: chọn đáp án "**hỏi thêm / điều tra trước**", "**tóm tắt văn xuôi**", "**hook**" khi có thiết kế đầy đủ hơn, "**prompt caching**". Xem bảng 🔁.
+
+#### [M2] Mock 2 - 60 câu (2026-11-21): **37/60 = 61.7%**
+
+Bộ thứ 2 của cùng site với M1. Câu sai: 4, 5, 6, 7, 12, 13, 17, 18, 19, 22, 26, 29, 33, 37, 38, 41, 42, 44, 46, 48, 50, 51, 55. Q42 đáp án site **sai theo guide** (bạn chọn đúng guide) => tính theo guide là **38/60 = 63%**. Claude đã xem **cả 60 câu** (đáp án + lựa chọn của bạn qua màu trên trang kết quả) và đối chiếu guide. Tóm tắt bằng lời của Claude, không chép nguyên đề.
+
+**Câu sai (23)**
+
+| Câu | Tình huống (rút gọn) | Bạn chọn | ✅ Đúng | Vì sao | Guide |
+|---|---|---|---|---|---|
+| Q4 | phân tích 12 tiền lệ tuần tự mất 3 phút; muốn nhanh hơn mà coordinator **vẫn theo dõi + debug được** | subagent phân tích **tự spawn** subagent con | **coordinator spawn nhiều subagent song song**, mỗi cái 1 phần tiền lệ, gộp kết quả trước synthesis | hub-and-spoke: mọi giao tiếp đi **qua coordinator** => coordinator thấy hết. Subagent tự spawn con => coordinator mất dấu. Queue / đệ quy = phức tạp, khó debug | 1.2 |
+| Q5 | review mọi PR theo **đúng 3 bước cố định** (style, security, docs) | orchestrator-workers | **prompt chaining** | bước **biết trước, giống nhau mọi lần** => chaining. Orchestrator-workers = khi **chưa biết** cần làm gì, LLM tự quyết => thừa ở đây | 1.6 |
+| Q6 | logic cache rải 15 file (~8.000 dòng), cần hiểu trước khi thêm trigger, giữ context gọn | Glob tên file cache, đọc file **to nhất** trước | **xem import + class hierarchy => tìm base class, Read nó, rồi trace từng chỗ invalidation** | hiểu code **từ từ theo luồng** (interface trước, chi tiết sau). File to nhất ≠ file quan trọng nhất | 2.5 |
+| Q7 | agent cứ dùng Grep thay vì `analyze_dependencies`, description chỉ có "Analyzes dependency graph" | **tách** thành 3 tool nhỏ | **viết description chi tiết** (làm gì, trả gì: direct imports, transitive deps, cycles) | gốc lỗi = description sơ sài (giống Q1, bạn làm đúng). Tách tool chỉ khi 1 tool làm **nhiều việc** 🔁 | 2.1, 2.4 |
+| Q12 | lỗi 500 lúc có lúc không, 200+ file, **chưa biết** component nào liên quan | lập **kế hoạch đầy đủ** mọi code path trước khi đọc code | **tạo subtask động** theo cái vừa tìm ra, đổi kế hoạch khi có thông tin mới | việc **mở** => dynamic decomposition. Không thể lập kế hoạch đầy đủ khi chưa biết lỗi nằm đâu 🔁 | 1.6 |
+| Q13 | field "materials" lúc "cotton blend", lúc "Cotton/Polyester mix", lúc bỏ trống | đổi **model to hơn** | **few-shot 2-3 cặp input / output** với format chuẩn | output không nhất quán => few-shot dạy format. Model to = làm quá tay, không dạy được format 🔁 | 4.2 |
+| Q17 | tìm mọi file `import @company/auth` | Bash `find -type d -name "*auth*"` | **Grep** câu import trong **nội dung** file | câu import nằm **bên trong** file => Grep. `find` / Glob chỉ xem **tên** file, thư mục 🔁 | 2.5 |
+| Q18 | reviewer chỉ xem được 5%, chọn cái nào đưa người xem | random 5% | **model báo confidence thấp, hoặc tài liệu mơ hồ / mâu thuẫn** | sức người có hạn => dồn vào chỗ **dễ sai nhất**. Random sampling = để **đo** error rate (Q15), không phải để chọn | 5.5 |
+| Q19 | batch 10.000 tài liệu, 300 cái lỗi `context_length_exceeded` | tăng `max_tokens` cho 300 cái | **chỉ gửi lại 300 cái, chia nhỏ (chunk)** rồi gộp kết quả | lỗi do **input** quá dài. `max_tokens` = giới hạn **output**, không liên quan. Gửi lại cả batch = phí | 4.5 |
+| Q22 | 2024: 35% vs 2021: 18%, synthesis coi là **mâu thuẫn** thay vì tăng trưởng | luôn tin số **mới nhất**, số cũ để phụ lục | **subagent ghi ngày xuất bản / thu thập** trong structured output | không có ngày => synthesis không biết đây là **xu hướng theo thời gian**. Tin số mới nhất = vứt dữ liệu xu hướng | 5.6 |
+| Q26 | đọc 8/45 file thì trả lời kém dần, quên pattern đã bàn | viết summary report, **clear hết** context, chỉ dùng report | **subagent cho câu hỏi cụ thể** ("tìm mọi test file", "trace refund flow"), main agent giữ bức tranh lớn | = ví dụ **nguyên văn** guide (mục 6.4 có sẵn). Clear hết + 1 report = mất chi tiết 🔁 | 5.4 |
+| Q29 | phiên khám phá 30+ phút, trả lời không nhất quán, dev phải nhắc lại | **tóm tắt mọi file** trước khi khám phá | **scratchpad file** ghi key findings, đọc lại khi cần | scratchpad = trí nhớ ngoài, ghi **cái đã tìm ra**. Tóm tắt trước = đoán cái gì quan trọng khi chưa biết gì 🔁 | 5.4 |
+| Q33 | review 1 lần chỉ có diff + file đã đổi, sót bug ở **file không đổi** (caller dùng tham số cũ) | thêm **chain-of-thought** liệt kê reference | **agentic có giới hạn lượt**: model tự Read / Grep codebase, đi theo reference để kiểm | model **không thấy** file không có trong prompt => suy luận kỹ mấy cũng không thấy caller. Phải cho tool đi tìm. Nhồi file 2 hop = quá nhiều | 3.6, 4.6 |
+| Q37 | migration script xử lý sai record có `null` | mô tả lỗi bằng lời + **viết lại cả script** | **đưa test case** (input có null + output mong muốn) rồi nhờ sửa | test case = rõ nhất, không hiểu nhầm. Viết lại cả script = dễ phá phần đang đúng 🔁 | 3.5 |
+| Q38 | chèn hàm vào giữa file, Edit lỗi vì không có text unique | Edit `replace_all` | **Read cả file, chèn, Write lại** | `replace_all` chèn vào **mọi** chỗ khớp => sai. Guide: Edit không tìm được text unique => Read + Write 🔁 | 2.5 |
+| Q41 | 3 yêu cầu ghi trong CLAUDE.md, Claude vẫn sửa file migration | chuyển hết vào `.claude/rules/` | **`permissions.deny` cho `Edit(./db/migrations/**)`** + logging giữ ở CLAUDE.md + **PostToolUse hook** chạy Prettier | rules vẫn chỉ là **lời dặn** (xác suất). "Never" => chặn cứng. "Prefer" => CLAUDE.md. "Sau mọi lần edit" => hook (= M1 Q22) 🔁 | 3.1, 3.3 |
+| Q42 ⚠️ | PDF report có 3 lỗi format **ảnh hưởng nhau** (cột, ngày, ngắt trang) | gửi **cả 3 trong 1 message** | site: sửa **lần lượt**, test sau mỗi bước | ⚠️ **Site sai theo guide**: lỗi **ảnh hưởng nhau** => 1 message; lỗi **độc lập** => lần lượt. Bạn chọn đúng guide | 3.5 |
+| Q44 | checklist review 8 mục; team còn dùng Claude cho nhiều việc khác | thêm vào **CLAUDE.md** | **slash command `/review`** gọi khi review | CLAUDE.md **luôn load** => checklist chiếm context cả khi viết feature. Command / skill = chỉ load **khi cần** 🔁 | 3.2 |
+| Q46 | 12% fail Pydantic ("expected float, got '2 to 3'"), retry y nguyên => y lỗi | **tiền xử lý** tài liệu nguồn | **gửi lại kèm lỗi validation** để model tự sửa | retry **kèm lỗi cụ thể** sửa được lỗi **format**. Retry không đổi gì = vô ích (đề nói rõ). Tiền xử lý = phải đoán trước mọi dạng lạ | 4.4 |
+| Q48 | làm cache Redis TTL 5 phút, nhưng **mới** với cache production | plan mode đọc code `/products` trước | **để Claude phỏng vấn bạn** (invalidation, consistency, failure mode) trước khi làm | domain **lạ** => interview pattern (mục 4.5). Đọc code không cho bạn biết **mình còn thiếu yêu cầu gì** 🔁 | 3.5 |
+| Q50 | 23% bản sửa là do "a handful", "a splash" (bịa số hoặc bỏ trống) | **fine-tune** trên 847 bản sửa | **few-shot** chỉ cách giữ **nguyên văn** cách đo không chuẩn | fine-tune **không thi** + quá tay. Pattern lặp lại => đưa vào few-shot 🔁 | 4.2 |
+| Q51 | "extract metadata và cho biết bao nhiêu citation" => gọi `lookup_citations` trước, thiếu DOI | forced `extract_metadata` cho **mọi** request | forced `extract_metadata` **ở request đầu**, enrichment ở **lượt sau** | forced mọi request => **không bao giờ** gọi được tool enrichment. `tool_choice` đặt **từng request** (mục 3.3 có nguyên văn) | 2.3, 4.3 |
+| Q55 | enum 4 loại nhà, gặp "studio", "loft"... và loại mới xuất hiện liên tục | đổi sang **string tự do** + chuẩn hóa sau | enum thêm **"other" + field `property_type_detail`** | giữ enum cho loại phổ biến + có chỗ ghi loại lạ. String tự do = mất cấu trúc. Mở rộng enum mãi = không theo kịp | 4.3 |
+
+**Câu đúng nhưng bạn còn phân vân** (bạn đánh dấu 29 câu)
+
+| Câu | Bạn nghi | Vì sao đáp án đúng thắng |
+|---|---|---|
+| Q3 (JSON lịch, downstream từ chối JSON hỏng) | A (prompt + schema, parse text) vs B | ✅ B: **tool + input schema** => hết lỗi cú pháp `[G 4.3]`. A = lời dặn => xác suất. Q59 cùng ý |
+| Q8 (25 phút khám phá rendering, trả lời "typical patterns") | | ✅ B: tóm tắt findings rendering, spawn subagent physics **kèm summary đó**. "typical patterns" = dấu hiệu context xuống cấp. C: subagent không có context rendering. D `/clear` = mất hết |
+| Q10 (bug production, stack trace rõ) | | ✅ D direct execution: bug **rõ, 1 chỗ** `[G 3.4]`. Plan mode = thừa |
+| Q14 (3 MCP server) | | ✅ A: tool của **mọi** server được discover lúc connect, dùng **cùng lúc** (mục 3.4) |
+| Q15 (12% lỗi ở confidence cao, cần đo lâu dài) | | ✅ C stratified random sampling hằng tuần => **đo** error rate + bắt lỗi kiểu mới. A re-extract = model lặp cùng lỗi. B hạ ngưỡng = tăng việc, không đo. D heuristic = chỉ bắt lỗi **đã biết** |
+| Q16 (thấy cả 4 đúng) | | ✅ D coordinator tự quyết. Chữ khóa "**diverse and evolving**" => luật cố định (A fast-path, B pattern routing) sẽ lỗi thời; C classifier cần data có nhãn + train lại (luật vàng 2). Coordinator là LLM, tự hiểu được loại query mới |
+| Q20 (skills `string[]` có 3 vấn đề) | | ✅ A few-shot: cả 3 vấn đề đều là "**làm không nhất quán**" => ví dụ dạy được cả 3. D giới hạn 10-20 = số tùy ý, cắt mất skill thật. B, C không sửa cách trích |
+| Q27 (tài chính / tin tức / patent bị ép thành bullet) | | ✅ A: mỗi loại 1 format (tài chính = bảng, tin = văn xuôi), mục 6.6 nguyên văn |
+| Q28 (giá "$12" vs "12.00", icon vs text) | | ✅ A: schema strict + quy tắc chuẩn hóa ngay trong prompt. 1 lần gọi là xong |
+| Q32 (hợp đồng có amendment 30 => 45 ngày) | | ✅ C: schema giữ **nhiều giá trị** + nguồn + ngày hiệu lực. Giống Q22: giữ hết + ngày, ❌ tự chọn 1 |
+| Q35 (2 subagent độc lập chạy tuần tự) | | ✅ D: coordinator gọi **2 Task trong 1 response** |
+| Q36 (field nullable mà vẫn bịa "500") | | ✅ A: dặn trả `null` khi không có. Schema **đã** nullable, chỉ thiếu lời dặn. B required = càng bịa |
+| Q40, Q54 (thử 2 hướng từ cùng 1 phân tích) | | ✅ `fork_session`: 2 nhánh từ cùng 1 điểm, không phân tích lại |
+| Q43 (tài liệu 175-190K token, sót 1/3 cuối, context 200K) | | ✅ D: tool definition (2.500 token) + system prompt + tài liệu => gần 200K. Số liệu trong đề chỉ thẳng D. *(Claude)* API thật: vượt context thì **báo lỗi**, không tự cắt; đề muốn bạn **cộng số** |
+| Q45 (lỗi "SYNC_CONFLICT", 12 service) | | ✅ C: Grep chuỗi lỗi đặc trưng (Grep = nội dung) |
+| Q47 (không hiểu đáp án) | | ✅ A `--append-system-prompt`. `--system-prompt` **thay toàn bộ** system prompt mặc định của Claude Code (gồm phần hướng dẫn dùng tool đọc file, đi theo code) => Claude chỉ xử lý diff. `--append-system-prompt` = **thêm** vào cuối, giữ phần mặc định. D sai: `-p` **không tắt** Read / Glob / Grep (lại còn có `--dangerously-skip-permissions`) |
+| Q52 (thấy cả 4 đúng) | | ✅ B: đo **theo loại tài liệu + field**, vì 97% tổng có thể che 1 loại kém (mục 6.5 nguyên văn). A, C vẫn nhìn **con số tổng**. D pilot = "chạy thử rồi chờ lỗi" (đáp án nhiễu ở mục 6.5) |
+| Q53 (thêm test cho 200 file, không nói ưu tiên gì) | | ✅ B: Glob / Grep vẽ cấu trúc, ưu tiên module quan trọng, sửa kế hoạch khi gặp phụ thuộc (= dynamic decomposition) |
+| Q57 (12% lỗi semantic, reviewer xem được 20%) | | ✅ B: confidence **từng field** + calibrate bằng labeled set. D random = để đo, không để chọn (giống Q18) |
+| Q58 (5% field rỗng dù tài liệu có thông tin) | | ✅ C: few-shot với tài liệu **cấu trúc khác nhau** (citation inline vs bibliography). B retry không đổi gì = vô ích. D optional = giấu lỗi |
+
+**Bài học thêm từ M2**
+- Q5 vs Q12 vs Q53: các bước **cố định** => prompt chaining. Việc **mở** (điều tra lỗi, thêm test cho code cũ) => dynamic, vừa làm vừa sửa kế hoạch.
+- Q15 vs Q18 vs Q57: random / stratified sampling = để **đo** error rate. Chọn cái đưa người xem khi sức người có hạn = **confidence thấp (đã calibrate) / tài liệu mơ hồ**.
+- Q1 (đúng) vs Q7 (sai): cùng 1 bài (MCP tool description sơ sài). Đáp án "tách tool" nghe hợp lý nhưng chỉ đúng khi tool làm **nhiều việc**.
+- Q41: map **từng yêu cầu** vào **đúng cơ chế**: "never" => `permissions.deny`, "prefer" => CLAUDE.md, "sau mỗi lần edit" => PostToolUse hook.
+- Q46 vs Q58 vs Q36: retry **kèm lỗi cụ thể** sửa được lỗi format. Retry **không đổi gì** = vô ích. Tài liệu **không có** thông tin => trả `null`, không retry.
+- Nhiều câu sai có đáp án **nguyên văn trong notes** (Q17, Q22, Q26, Q29, Q37, Q38, Q48, Q51) => đọc lại mục 3.3, 3.5, 4.5, 6.4, 6.6 trước mock 3.
+
+**Nhận xét chung**: 37/60 (M1: 39/60). Sai nhiều nhất ở **D4 structured output** (Q13, Q19, Q46, Q50, Q51, Q55), **D2 built-in tool + MCP** (Q6, Q7, Q17, Q38), **D3 Claude Code** (Q37, Q41, Q44, Q48), **D5 context** (Q18, Q22, Q26, Q29), **D1 chia task** (Q4, Q5, Q12). Kiểu sai lặp lại: chọn cách "**làm to hơn**" (model to hơn, fine-tune, orchestrator-workers, kế hoạch đầy đủ trước) và "**tóm tắt / clear context**" thay vì scratchpad / subagent. Xem bảng 🔁 dòng 8-12.
+
+#### [M3] Mock 3 - 14 câu (2026-11-21): **10/14 = 71%**
+
+Bộ thứ 3 cùng site, chỉ **14 câu** (gần hết là scenario CI/CD + developer productivity). Câu sai: 2, 3, 6, 11. Bạn nói không chắc **câu nào** => Claude giải thích **cả 14**. 3 chi tiết sản phẩm (REVIEW.md, `--bare`, `--max-budget-usd`) đã kiểm với docs Claude Code: **có thật**. Không có đáp án site nào sai.
+
+**Câu sai (4)**
+
+| Câu | Tình huống (rút gọn) | Bạn chọn | ✅ Đúng | Vì sao | Guide |
+|---|---|---|---|---|---|
+| Q2 | agent nối 3 MCP server (issue, wiki, DB); câu hỏi chéo hệ thống => 8-10 tool call tuần tự, gọi **dò dẫm** vì không biết server nào có gì, hết context | orchestrator **route theo keyword** tới 1 server | **expose catalog mỗi server thành MCP resources** (tóm tắt issue, cây tài liệu, DB schema) | agent **thấy trước** có gì => bớt call dò dẫm (mục 3.4 nguyên văn). Keyword routing = routing layer (luật vàng 2), lại còn câu hỏi **chéo 3 hệ thống** không route về 1 server được | 2.4 |
+| Q3 | 1 prompt review cả security + API + business logic; thêm few-shot logic => logic 34% lên 41%, nhưng API 82% tụt 68% | thay few-shot bằng **checklist** edge case logic | **tách thành prompt riêng** (security + API / business logic), mỗi cái có ví dụ riêng, rồi gộp findings | gốc = 1 prompt ôm quá nhiều => thêm cho mảng này thì mảng kia tụt (chú ý bị chia). Checklist vẫn nhồi vào **cùng prompt** => vẫn đánh đổi, lại chỉ bắt case đã liệt kê 🔁 | 4.6 |
+| Q6 | review PR 30+ file bằng tool `report_findings`, output chạm `max_tokens` => JSON bị cắt giữa chừng, parser lỗi | bỏ tool_use, trả **markdown list** | **chia thành nhiều call**, mỗi call 1 nhóm file, rồi gộp mảng findings | markdown vẫn bị cắt, lại mất cấu trúc. Tăng `max_tokens` + viết ngắn = PR to hơn lại hỏng. Chỉ báo critical = mất findings. Chia nhỏ = per-file pass (câu mẫu Q12) 🔁 | 4.6, 4.3 |
+| Q11 | người mới cần hiểu kiến trúc auth trước khi sửa, 800+ file nhiều service | **subagent song song** cho từng service rồi tổng hợp | **Grep tìm entry point auth, Read, rồi đi theo import / function call** để vẽ luồng auth dần dần | cần hiểu **1 luồng** xuyên service => đi theo luồng. Chia theo **service** = mỗi subagent tả cả service, không bám câu hỏi auth. (Khác M2 Q26: subagent đúng khi context **đã** xuống cấp và mỗi subagent nhận **1 câu hỏi cụ thể**) 🔁 | 2.5 |
+
+**Câu đúng** (bạn không chắc câu nào => giải thích hết)
+
+| Câu | Vì sao đáp án đúng thắng |
+|---|---|
+| Q1 (Code Review managed qua GitHub App, 18 findings / PR, 3 loại nhiễu) | ✅ A **REVIEW.md** ở gốc repo: luật bỏ qua (lint đã có CI, `src/gen/`) + finding về rendering phải **chỉ ra dòng cụ thể** sai. Review chạy qua **GitHub App**, không qua workflow => B, D (sửa workflow file) không tác động. C CLAUDE.md = context chung cho mọi việc, không phải luật riêng của review (mục 4.6) |
+| Q4 (truy cập dữ liệu Jira **chuẩn**) | ✅ A dùng **MCP server Jira có sẵn**. Mục 3.4: tích hợp chuẩn => community server; tự viết (C) chỉ cho workflow **riêng** của team. B curl = tự lo auth + parse. D export markdown = cũ ngay |
+| Q5 (tìm mọi `eval(`) | ✅ D **Grep** = nội dung. A Glob `*eval*` = tìm **tên file** có chữ eval. B `ls -R` cũng chỉ liệt kê **tên** file |
+| Q7 (prompt "chỉ báo lỗi chắc chắn, bỏ qua cái không chắc" => bug thật bị giấu) | ✅ D báo **tất cả** kèm confidence + severity, lọc ở bước sau. Bỏ đúng **câu gây giấu lỗi** mà vẫn giữ output có tag. A pass 2 cùng prompt = cùng bị giấu. B thinking: model **đã** điều tra rồi, vấn đề là lời dặn "đừng báo". C bỏ hết severity = mất tag |
+| Q8 (giới hạn số lượt + số tiền, do **Claude Code tự** chặn) | ✅ B `--max-turns 10 --max-budget-usd 2.00`. D `timeout-minutes` = **runner** chặn, không giới hạn tiền. C model rẻ = không có giới hạn cứng. A `dontAsk` = chuyện **quyền**, không phải giới hạn |
+| Q9 (55% test sinh ra vô giá trị, giảm **ngay từ đầu**) | ✅ A ghi chuẩn test + fixture + ví dụ test tốt / test vô nghĩa vào **CLAUDE.md** (mục 4.6). C, D = lọc **sau** khi đã sinh. B = né vấn đề |
+| Q10 (35% false positive theo pattern; muốn model **tổng quát hóa** cho code chưa gặp) | ✅ C **few-shot** có chú thích: ví dụ dạy **cách phán đoán** => áp được cho pattern mới (mục 5.2). A spec dài = chỉ phủ case đã liệt kê. D "be conservative" = vô dụng (luật vàng 10). B keyword filter = dễ vỡ |
+| Q12 (nửa số finding bị bỏ qua vì vụn vặt; "**before adding infrastructure**") | ✅ A **tiêu chí rõ**: báo gì (bug, security) / bỏ gì (style nhỏ, pattern local). B tự chấm 1-10 = không calibrate (luật vàng 6). C "highly confident" = mơ hồ. D classifier = **hạ tầng**, đề đã loại |
+| Q13 (30% false positive do convention riêng; "**persistent context on every review**") | ✅ C ghi convention vào **CLAUDE.md**. "Ngăn ngay từ đầu" + "context mọi lần review" => CLAUDE.md. A, B = lọc sau. D bỏ context xung quanh = càng hiểu sai |
+| Q14 (CI khởi động 18 giây vì auto-discovery; vẫn cần chuẩn trong root CLAUDE.md) | ✅ B `--bare` (bỏ auto-discovery) + `--append-system-prompt-file ./CLAUDE.md` (**thêm** chuẩn team). A `--system-prompt-file` = **thay** prompt mặc định (= bài M2 Q47). C chép tiêu chí vào `-p` = 2 nơi, dễ lệch nhau. D không giảm thời gian khởi động |
+
+**Bài học thêm từ M3**
+- Q1 vs Q13 vs Q9: rule **chỉ cho review** của Code Review managed => **REVIEW.md**. Convention / chuẩn test dùng cho **mọi** việc (cả `/code-review` local) => **CLAUDE.md**.
+- Q3, Q6 (+ M2 Q33, câu mẫu Q12): 1 prompt / 1 call ôm quá nhiều => **chia nhỏ** rồi gộp. Không sửa bằng cách nhồi thêm vào cùng prompt hay đổi format.
+- Q14 = M2 Q47: `--system-prompt*` **thay**, `--append-system-prompt*` **thêm**. Bạn làm đúng lần này.
+- Q7 vs Q12 vs Q10: "chỉ báo cái chắc chắn" giấu bug (Q7) => báo hết + tag + lọc sau. Nhiều finding vụn (Q12) => tiêu chí rõ báo / bỏ. False positive cần **tổng quát hóa** (Q10) => few-shot.
+
+**Nhận xét chung**: 10/14 = 71%, cao hơn M1 (65%) và M2 (62%), nhưng chỉ 14 câu nên **chưa đủ** để kết luận. Bạn làm tốt nhóm "viết prompt cho review" (tiêu chí, few-shot, CLAUDE.md, flag CLI). Sai do: route theo keyword (Q2), nhồi thêm vào 1 prompt (Q3), đổi format thay vì chia nhỏ (Q6), chia subagent theo service thay vì đi theo luồng (Q11). Xem bảng 🔁 dòng 11, 13.

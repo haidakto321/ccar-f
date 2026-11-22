@@ -26,10 +26,10 @@
 |---|---|---|
 | 1 | Hỏi / điều tra trước (M1 Q8, Q29) | Khách **đòi người rõ ràng** => escalate **ngay**. Bực nhưng làm được => đề nghị làm **hoặc** escalate. ❌ hỏi thêm trước |
 | 2 | Tóm tắt văn xuôi (Q18, Q56, Q37) | Giữ dữ liệu bằng **cấu trúc**: chỉ field cần, lớp context riêng, session mới + structured summary. ❌ prose, ❌ resume với tool result cũ |
-| 3 | Error cho model (Q14, Q49, Q51) | Có **loại + retry được không + bước tiếp**. Request hỏng => JSON-RPC protocol error. Tool chạy mà lỗi => `isError` |
-| 4 | Cấu hình Claude Code (M1 Q20, Q25, Q50 · M2 Q41, Q44) | Có **pattern tên file** => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước. "**Never** sửa X" => `permissions.deny`. Checklist chỉ dùng lúc review => slash command, ❌ CLAUDE.md (luôn load) |
-| 5 | Gộp / tách tool (M1 Q3, Q31, Q44 · M2 Q7) | 1 tool **nhiều việc** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng. Tool **1 việc**, description sơ sài => **viết lại description**, ❌ tách |
-| 6 | Hook khi có cách đầy đủ hơn (Q2, Q52) | Nhiều đáp án là code => chọn cái **phủ mọi trường hợp** (kiểm tra sau khi loop dừng; tool tự tạo yêu cầu duyệt) |
+| 3 | Error cho model (M1 Q14, Q49, Q51 · M4 Q60) | Có **loại + retry được không + bước tiếp**. Request hỏng => JSON-RPC protocol error. Tool chạy mà lỗi => `isError`. Lỗi để agent nói với user => **nguyên nhân + bước khắc phục**, ❌ mã lỗi kỹ thuật |
+| 4 | Cấu hình Claude Code (M1 Q20, Q25, Q50 · M2 Q41, Q44 · M4 Q21, Q29) | Tự hỏi "**có pattern đường dẫn không?**". Có => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước. "**Never** sửa X" => `permissions.deny`. Checklist chỉ dùng lúc review => slash command, ❌ CLAUDE.md (luôn load) |
+| 5 | Gộp / tách tool (M1 Q3, Q31, Q44 · M2 Q7 · M4 Q32, Q54, Q56, Q57) | 1 tool **nhiều việc** hoặc **nhiều bộ tham số** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng. Tool **1 việc**, description sơ sài => **viết lại description**, ❌ tách, ❌ validation server. Tool B gọi tool A chỉ để lấy 1 field => **B nhận ID tự tra**, ❌ gộp |
+| 6 | Hook khi có cách đầy đủ hơn (M1 Q2, Q52 · M4 Q18) | Nhiều đáp án là code => chọn cái **phủ mọi trường hợp** (kiểm tra sau khi loop dừng; tool tự tạo yêu cầu duyệt) |
 | 7 | Prompt caching (Q6, Q54) | Caching chỉ là **chi phí / tốc độ**, không sửa gốc. Chi tiết ngoài phạm vi thi => thường là **bẫy** |
 | 8 | Chia task (M2 Q5, Q12) | Bước **cố định, biết trước** => **prompt chaining**. Việc **mở**, chưa biết lỗi ở đâu => **dynamic** (vừa tìm vừa đổi kế hoạch). ❌ orchestrator-workers cho việc cố định, ❌ kế hoạch đầy đủ trước khi biết gì |
 | 9 | Làm to hơn (M2 Q13, Q50) | Output không nhất quán / case lạ bị bịa => **few-shot**. ❌ model to hơn, ❌ fine-tune, ❌ temperature 0 |
@@ -37,6 +37,8 @@
 | 11 | Chọn built-in tool + khám phá code (M2 Q6, Q17, Q38 · M3 Q11) | Grep = **nội dung** (import, error message). Glob / `find` = **tên** file. Edit không có text unique => **Read + Write**. Hiểu code: Grep **entry point** rồi theo **import / function call**. ❌ file to nhất trước, ❌ subagent chia theo service khi cần hiểu 1 luồng |
 | 12 | Iterative refinement (M2 Q37, Q48) | 1 edge case => **test case** (input + output mong muốn). Domain **lạ** => **interview pattern**. Lỗi ảnh hưởng nhau => **1 message** |
 | 13 | 1 prompt / 1 call ôm quá nhiều (M3 Q3, Q6) | Thêm cho mảng A thì mảng B tụt, hoặc output bị cắt ở `max_tokens` => **chia nhiều prompt / call nhỏ** rồi gộp. ❌ checklist trong cùng prompt, ❌ đổi sang markdown |
+| 14 | MCP tool / resource / prompt (M1 Q21, M4 Q42 · M3 Q2) | **Tool** = model tự gọi. **Resource** = dữ liệu / catalog để đọc (`@`-mention, bớt call dò dẫm). **Prompt** = template user chạy => **slash command** |
+| 15 | Bẫy "deterministic" (M1 Q33, M4 Q26) | Model **không bao giờ** deterministic. Lợi ích JSON có field = **không phải parse text** |
 
 ---
 
@@ -44,7 +46,7 @@
 
 | Câu | Mock ghi | Đúng theo guide |
 |---|---|---|
-| M1 Q46 (timeout, không biết đã gửi chưa) | `retry_safe: true` | báo "**status unknown, đừng retry**" (retry => gửi trùng) |
+| M1 Q46 = M4 Q40 (timeout, không biết đã gửi chưa) | `retry_safe: true` | báo "**status unknown, đừng retry**" (retry => gửi trùng) |
 | M1 Q32 (thiếu `user_id`) | strict schema | ⚠️ tranh cãi: "bảo đảm cấu trúc" => schema; "giúp **hiểu**" => description |
 | M2 Q42 (3 lỗi format PDF **ảnh hưởng nhau**) | sửa **lần lượt**, test từng bước | gửi **cả 3 trong 1 message** (guide 3.5). Lần lượt = cho lỗi **độc lập** |
 | M1 (giải thích) | chương sách, flag, tên MCP bịa | chỉ tin **đáp án**, kiểm với guide (notes mục 10) |
@@ -89,6 +91,7 @@
 | MCP **resource** vs **tool** | resource = **danh mục để xem** (danh sách issue, DB schema) => agent bớt gọi tool dò dẫm. Tool = **hành động** (3.4) |
 | **Grep** vs **Glob** | Grep = tìm **nội dung bên trong** file. Glob = tìm **tên file** (`**/*.test.tsx`) (3.5) |
 | **Edit** lỗi | Edit cần 1 đoạn text **chỉ xuất hiện 1 lần** trong file. Xuất hiện nhiều lần => Edit lỗi => **Read** cả file + **Write** lại (3.5) |
+| Confirm bị **bấm bừa** | 98% user bấm "Confirm?" trong 2 giây mà vẫn đăng sai => **hiện đủ chi tiết** (nội dung, tài khoản, giờ, nền tảng) trong câu xác nhận. ❌ bắt gõ chữ, ❌ chờ thêm, ❌ tự duyệt (M4 Q52) |
 
 **Claude Code (D3)**
 
@@ -131,6 +134,7 @@
 | Tóm tắt làm mất số liệu | tóm tắt nhiều lần => "đơn #A123, $89.99" thành "vài đơn hàng". Sửa: trích số tiền, ngày, mã đơn, mong muốn của khách vào **case facts block**: chép **nguyên văn**, gửi kèm **mọi** request, **không** đem đi tóm tắt. Chỉ phần nói chuyện được tóm tắt (6.1) |
 | **Lost in the middle** | model nhớ đầu + cuối, sót phần **giữa** input dài => đưa key findings lên **đầu** + chia section header. ≠ attention dilution: cái này do **vị trí**, kia do **khối lượng** (6.1) |
 | Tool trả về quá dài | **cắt** còn field cần dùng **trước khi** đưa vào context (6.1) |
+| Agent **hỏi lại** thông tin user vừa nói | API **stateless** => app **không gửi lịch sử hội thoại** ở request sau. ❌ "tool xóa state", ❌ "Claude chỉ nhớ 2 lượt" (6.1, M4 Q22) |
 | Context xuống cấp (trả lời chung chung "typical patterns") | ghi findings ra **scratchpad file** (file nháp), giao câu hỏi cụ thể cho subagent, `/compact` (6.4) |
 | Crash recovery | mỗi agent ghi trạng thái ra file cố định (**manifest**), coordinator đọc file đó khi chạy lại (6.4) |
 | 97% tổng thể, đã tự động hóa được chưa? | con số tổng có thể che 1 loại tài liệu kém => đo **riêng từng loại tài liệu + từng field**, lấy mẫu kiểm tra **chia theo nhóm** (stratified sampling) (6.5) |

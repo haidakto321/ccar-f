@@ -99,6 +99,7 @@
 |---|---|
 | `~/.claude/CLAUDE.md` vs `CLAUDE.md` repo | `~/.claude/` = **chỉ máy mình**, teammate không nhận. Trong repo = **cả team** nhận qua git (4.1) |
 | `.claude/rules/` + `paths:` vs **CLAUDE.md thư mục** | file cùng loại nằm **rải rác** nhiều thư mục => rules + glob. CLAUDE.md thư mục chỉ áp cho **1 thư mục** (4.3) |
+| `.claude/rules/` + `paths:` vs **@import** | Tự hỏi: "**glob pattern có chọn đúng file không?**". **Có** (file Terraform đều nằm dưới `terraform/`) => rules + `paths: ["terraform/**/*"]`, tự load khi sửa file khớp (M4 Q21). **Không**, chỉ người phụ trách biết (package `billing` có xử lý dữ liệu user không?) => `@import` đúng chuẩn cần dùng trong CLAUDE.md **từng package** (M4 Q29). ❌ `@import` trong **root** CLAUDE.md (root luôn load => không tiết kiệm token). ❌ rule liệt kê tay từng thư mục package (không phải pattern, thêm package là phải sửa) (4.1, 4.3) |
 | `.claude/commands/` vs `~/.claude/commands/` | trong repo = **cả team** / trong home = **cá nhân** (4.2) |
 | `.mcp.json` vs `~/.claude.json` | `.mcp.json` = MCP server **team**, secret để dạng `${ENV}` / `~/.claude.json` = MCP **cá nhân, thử nghiệm** (3.4) |
 | **Skill** vs **CLAUDE.md** | skill = chỉ load **khi cần** / CLAUDE.md = **luôn load** (4.2) |

@@ -934,6 +934,8 @@ Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + k
 
 ### 🔁 Điểm yếu: câu sai nhiều lần (ôn cái này TRƯỚC khi thi)
 
+> Bảng này = **luật**. Đáp án **cụ thể** từng câu sai >= 2 lần (✅ đáp án đúng vs ❌ đáp án bạn đã chọn, keyword thật): xem bảng **🎯 ngay dưới** (giống cheatsheet mục 2b). **Mọi câu đã gặp**, xếp theo 6 scenario thi (đọc như đọc đề): bảng **📚 Story index** dưới 🎯 (giống cheatsheet mục 2c).
+
 | # | Chủ đề | Sai ở câu | Quy tắc 1 dòng | Ôn lại |
 |---|---|---|---|---|
 | 1 | **Hỏi / điều tra trước** khi làm theo yêu cầu của khách | M1 Q8, Q29 | Khách **đòi người rõ ràng** ("real person NOW") => escalate **ngay**, kèm history. Khách bực nhưng việc agent **làm được** => ghi nhận + đề nghị giải quyết **hoặc** escalate. Cả 2: ❌ hỏi thêm / điều tra trước | 6.2 |
@@ -957,6 +959,212 @@ Cách làm: **làm mock => đưa câu sai cho Claude => Claude giải thích + k
 | 19 | **Multi-agent: giữ thông tin + đi qua coordinator** | M2 Q4, Q22 · M5 Q24, Q51 (cả 2 **cùng đáp án sai**), Q29, Q53 · M6 Q17 (tin số mới nhất, **sai lần 3**), Q27 + Q30 (ép hết về văn xuôi, 1 câu xuất hiện 2 lần) | Song song => **coordinator** spawn nhiều subagent / gọi **2 Task trong 1 response**; ❌ subagent tự spawn con, ❌ lớp async ngoài agent. Số liệu khác năm => subagent **ghi ngày**; ❌ tin số mới nhất. Nhiều loại nội dung => synthesis **render theo loại** (bảng / văn xuôi); ❌ lớp chuyển đổi về 1 format chung, ❌ chuẩn hóa hết thành văn xuôi (cũng là 1 format chung) | 2.2, 2.3, 6.6 |
 | 20 | **Hội thoại quên thông tin cũ** | M4 Q22 · M6 Q4, Q53 | Mới **2-3 lượt** đã quên (user nói thích jazz, 2 lượt sau Claude hỏi lại) => app **không gửi lịch sử** trong `messages` (API **stateless**); ❌ vượt context window (2 lượt không thể đầy), ❌ tool xóa state. Hội thoại **dài**, sliding window bỏ lượt cũ => **hybrid**: tóm tắt lượt cũ + giữ lượt mới nguyên văn; số tiền / ngày / ID => **case facts block** (M6 Q40 ✅). ❌ tăng window (chỉ mất muộn hơn) | 6.1 |
 | 21 | **Review sót bug xuyên file** | M2 Q33 · M6 Q8 (cùng 1 câu, sai 2 lần, đáp án sai khác nhau; M5 Q19 làm đúng) | Bug nằm ở file **không có trong prompt** (caller ở file không đổi vẫn dùng tham số cũ) => **review agentic có giới hạn lượt**: model tự Read / Grep, đi theo reference. ❌ chain-of-thought (không thấy file thì nghĩ mấy cũng không thấy), ❌ pass song song từng file + nhét dependents (danh sách tĩnh, sót reference nhiều tầng). **Khác** guide Q12: 14 file **đã có** trong prompt mà review nông => **attention dilution** => chia pass | 3.6, 4.6 |
+
+### 🎯 Đáp án đúng vs bẫy bạn đã chọn (câu sai >= 2 lần)
+
+> Đáp án viết lại bằng lời Claude, giữ **keyword thật** của đề. Cách ôn: **che 2 cột ✅ / ❌**, đọc "Đề nói", tự nói đáp án, rồi mới mở. 🔴 = sai 3 lần.
+
+**Agent + multi-agent (D1)**
+
+| Đề nói | ✅ Chọn | ❌ Bẫy bạn đã chọn | Phân biệt |
+|---|---|---|---|
+| 🔴 `lookup_citations` chạy trước khi có DOI, muốn `extract_metadata` chạy trước (M2 Q51 · M5 Q46 · M6 Q11) | forced `tool_choice: {"type":"tool","name":"extract_metadata"}` + enrichment ở **subsequent turns** | cùng forced đó nhưng "**for every API call**" | 2 đáp án mở đầu **giống nhau** => đọc **đuôi**. Mọi call => enrichment không bao giờ chạy. Cũng ❌ `"any"` (ép 1 tool bất kỳ), ❌ xếp tool lên đầu mảng `tools` |
+| 🔴 2024: 35% vs 2022: 18% bị coi là mâu thuẫn (M2 Q22 · M5 Q51 · M6 Q17) | subagent **include publication / collection dates** trong structured output | synthesis coi số **most recent** là **authoritative**, số cũ ra appendix | khác năm = **xu hướng**. Sửa ở **nguồn** (output subagent), không đặt luật cứng ở synthesis |
+| 🔴 tài chính / tin tức / patent bị ép hết thành bullet (M5 Q53 · M6 Q27, Q30) | synthesis **render each content type**: tables / prose / structured lists | **standardize** hết thành prose (M6), **conversion layer** về 1 common format (M5) | thấy "standardize / uniform / common format" => loại: vẫn ép 1 format |
+| phân tích tuần tự chậm, muốn song song mà coordinator **vẫn theo dõi / debug** được (M2 Q4 · M5 Q24) | **coordinator spawns** nhiều subagent song song, gộp kết quả | subagent **tự spawn** subagent con | mọi thứ đi **qua coordinator** (hub-and-spoke) |
+| 2 subagent độc lập nhưng chạy tuần tự (M5 Q29) | coordinator gọi **2 `Task` trong 1 response** | **async orchestration layer** bên ngoài agent | song song có sẵn trong agent loop, không cần hạ tầng mới |
+| lỗi 500 lúc có lúc không, 200+ file, **chưa biết** ở đâu (M2 Q12 · M5 Q6) | **dynamic**: tạo subtask theo cái vừa tìm ra, đổi kế hoạch | lập **full plan** mọi code path trước | chưa biết gì => không lập kế hoạch đầy đủ được |
+| refund > $500 phải duyệt, **không lách được** (M1 Q52 · M4 Q18) | **tool tự enforce**: < $500 refund luôn, > $500 tạo approval request + trả "pending" | **PreToolUse hook** gắn flag `requires_approval`, tool đọc flag | code **1 chỗ, phủ hết** thắng hook + flag (2 mảnh phải khớp nhau) |
+
+**Tool + MCP (D2)**
+
+| Đề nói | ✅ Chọn | ❌ Bẫy bạn đã chọn | Phân biệt |
+|---|---|---|---|
+| agent dùng Grep thay vì `analyze_dependencies` (description: "Analyzes dependency graph") (M2 Q7 · M5 Q26) | **expand description**: làm gì, trả gì (direct imports, transitive deps, cycles) | **split** thành 3 tool (M2), **routing instructions** trong system prompt (M5) | tool làm **1 việc**, description sơ sài => sửa **description** |
+| 1 tool `analyze_document` + instruction tự do, 35% phải hỏi lại (M1 Q44 · M4 Q32) | **split**: `extract_data_points`, `summarize_content`, `verify_claim_against_source`, có input / output contract | viết **description + examples** tốt hơn | tool làm **nhiều việc** => tách. Ngược với dòng trên |
+| MCP server có **prompts** ngoài tools (M1 Q21 · M4 Q42) | thành **slash command** user tự chạy (`/mcp__<server>__<prompt>`) | vào **tool registry**, model tự gọi | tool = model gọi; resource = dữ liệu đọc; **prompt = user chạy** |
+| `control_device` timeout, agent chỉ nói "không phản hồi" (M1 Q14 · M4 Q60) | `isError` + **likely causes + next steps** để agent nói với user | device ID + timeout + mã API (M4); "Device offline" + tool riêng (M1) | lỗi để **user** đọc => nguyên nhân + bước khắc phục, không phải thông tin debug |
+| hiểu logic cache rải 15 file trước khi sửa (M2 Q6 · M5 Q21) | theo **imports + class hierarchy** => tìm **base class**, Read, trace từng chỗ invalidation | Glob + đọc file **to nhất** (M2); Grep "invalidate" rồi đọc vài dòng quanh (M5) | hiểu **interface chung** trước, chi tiết sau |
+
+**Claude Code (D3)**
+
+| Đề nói | ✅ Chọn | ❌ Bẫy bạn đã chọn | Phân biệt |
+|---|---|---|---|
+| `/terraform`, `/kubernetes`: chỉ load rule hợp **loại file** đang sửa (M1 Q25 · M4 Q21) | `.claude/rules/` + `paths: ["terraform/**/*"]` | CLAUDE.md thư mục con (M1); `@import` trong **root** CLAUDE.md (M4) | có **pattern đường dẫn** => rules + `paths:` |
+| monorepo 15 package, **không** có pattern tên, maintainer tự biết (M1 Q20 · M4 Q29 bỏ trống) | `@import` chuẩn liên quan trong CLAUDE.md **từng package** | `.claude/rules/` + `paths:` **liệt kê từng thư mục** | **không** có pattern => `@import`. Cặp với dòng trên |
+| checklist review 8 mục, team dùng Claude cho nhiều việc khác (M2 Q44 · M5 Q34) | slash command **`/review`** (`.claude/commands/review.md`) | **CLAUDE.md** (M2); **review subagent** riêng (M5) | chỉ cần **lúc review**. CLAUDE.md luôn load; subagent nặng hơn mức cần |
+| làm cache Redis, **mới** với cache production (M2 Q48 · M5 Q1) | để Claude **interview** bạn trước (invalidation, consistency, failure modes) | **plan mode** đọc code `/products` | thiếu **yêu cầu**, không thiếu hiểu code. Plan mode đọc code, không hỏi bạn |
+| migration script sai với `null` (M2 Q37 · M5 Q4) | đưa **test case**: input có null + **expected output** | mô tả bằng lời + **rewrite** cả script | test case rõ nhất, không phá phần đang đúng |
+| plan mode 2 chiều (M4 Q46 · M5 Q12 · M6 Q22) | **direct**: stack trace rõ / 1 hàm 1 file. **plan mode**: breaking change thư viện ở 45 file nhiều module | plan mode cho việc nhỏ (M4, M5); bump version + sửa test fail dần cho việc to (M6) | hỏi: "to / nhiều module / breaking change?" |
+| review sót caller ở file **không đổi** (M2 Q33 · M6 Q8) | **turn-limited agentic review**: model tự Read / Grep theo reference | **chain-of-thought** (M2); **parallel passes** + direct dependents + summary call (M6) | thiếu **context** => cho tool đi tìm. Đủ file mà review nông => chia pass |
+
+**Structured output (D4)**
+
+| Đề nói | ✅ Chọn | ❌ Bẫy bạn đã chọn | Phân biệt |
+|---|---|---|---|
+| lợi ích chính của JSON có field so với text (M1 Q33 · M4 Q26) | agent lấy giá trị **reliably**, không phải **parse text** | "model xử lý JSON **deterministically**" | model không bao giờ deterministic => loại |
+| batch 10.000, 300 lỗi `context_length_exceeded` (M2 Q19 · M5 Q41) | **chunk** + resubmit **chỉ 300 cái lỗi** | tăng **`max_tokens`** | `max_tokens` = **output**; lỗi do **input** dài |
+| 12% fail Pydantic ("got '2 to 3'"), retry y nguyên ra y lỗi (M2 Q46 · M5 Q45) | resubmit **kèm validation error cụ thể** | **preprocess** tài liệu nguồn | retry **kèm lỗi** sửa được lỗi format |
+| format không nhất quán / số đo lạ bị bịa (M2 Q13, Q50) | **few-shot** 2-3 cặp input / output | **bigger model** (Q13); **fine-tune** (Q50) | "làm to hơn" = bẫy. Fine-tune không thi |
+
+**Context + human review (D5)**
+
+| Đề nói | ✅ Chọn | ❌ Bẫy bạn đã chọn | Phân biệt |
+|---|---|---|---|
+| reviewer chỉ xem được 5% / 20% (M2 Q18 · M5 Q32, Q47 · M6 Q50) | **low confidence** (field-level, **calibrated** với labeled set) + tài liệu **ambiguous / contradictory** | **random 5% sample** (M2, M5); tài liệu **formatting anomalies** / layout lạ (M5, M6) | random = để **đo**, không để chọn. Layout không báo trước field nào sai |
+| đọc 8/45 file thì quên dần pattern (M2 Q26 · M5 Q50) | **subagents** cho câu hỏi cụ thể ("find all test files"), main agent giữ bức tranh lớn | summary + **clear** hết (M2); **Grep tên hàm** thay vì đọc (M5) | guide 5.4 nguyên văn |
+| mới vài lượt đã hỏi lại thứ user vừa nói (M4 Q22 · M6 Q4) | app **không gửi prior messages** trong `messages` (API stateless) | tool **xóa state** (M4); **context window exceeded** (M6) | 2-3 lượt không thể đầy context |
+| sliding window 2 chiều (M1 Q54 · M4 Q35 bỏ trống · M6 Q53) | 94% câu chỉ cần 3-5 lượt gần => **sliding window** 8-10 lượt. User mất sở thích cũ => **hybrid**: summary cũ + giữ mới nguyên văn | **prompt caching** (M1); **window to hơn** 25 => 50 (M6) | caching không làm context nhỏ đi; window to chỉ mất muộn hơn |
+
+### 📚 Story index: câu đã gặp => đáp án (theo 6 scenario thi)
+
+> Đọc cột **Story** như đang đọc đề, **tự nói đáp án trước**, rồi mới nhìn ✅. Cột **Clue** = chữ trong đề chỉ ra đáp án. Trong mỗi scenario, câu yếu nhất đứng đầu. Tổng: 114 câu (mock M1-M6 + 12 câu mẫu guide). Flashcard dùng cùng dữ liệu này.
+
+> 🔴 sai 3 lần · 🔁 sai 2 lần · ❌ sai 1 lần (đã sửa) · ⚠️ key site sai, bạn đúng · 🟡 đúng nhưng không chắc / bỏ trống · 📘 câu mẫu guide
+
+**1. Customer Support Resolution Agent** (26 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔁 | Refunds over $500 need manager approval and must not be bypassable | cannot be bypassed | **The refund tool enforces it: under $500 refunds, over $500 creates an approval request and returns pending** | PreToolUse hook sets a requires_approval flag that the tool reads (M1, M4) | M1 Q52 · M4 Q18 |
+| 🔁 | control_device times out; the agent only says the device is not responding | help the user take the next step | **isError + likely causes + next steps the agent can tell the user** | Device ID + timeout + API code for debugging (M4); Device offline + a separate tool (M1) | M1 Q14 · M4 Q60 |
+| 🔁 | 35 turns (about 50K tokens), slow and worse; 94% of questions need only the last 3-5 turns | 94%, customers easily restate old details | **Sliding window: send only the last 8-10 turns** | Prompt caching while still sending everything (M1); left blank (M4) | M1 Q54 · M4 Q35 |
+| 🔁 | Only 2-3 turns later the agent asks again for info the user just gave (their name, loves jazz) | only a few turns | **The app is not sending prior messages in the messages array (the API is stateless)** | The tool cleared the state (M4); context window exceeded (M6) | M4 Q22 · M6 Q4 |
+| ❌ | Angry customer wants someone who can actually help; the return is something the agent can do right now | frustrated, but the task is doable | **Acknowledge, say it can be done now, offer to do it OR escalate** | Ask what went wrong / investigate first (M1) | M1 Q8 · M4 Q19 ✅ |
+| ❌ | Customer: I want to talk to a real person NOW (no tools called yet) | explicit request for a human | **Escalate immediately with the conversation history** | Acknowledge and ask one question first (M1) | M1 Q29 · M4 Q20 ✅ |
+| ❌ | Agent hits max_turns mid-case; every case must end resolved or escalated | guarantee | **Code checks the result after the loop stops; if not resolved, code calls escalate_to_human with context** | Hook that stops at 80% of max_turns (M1) | M1 Q2 · M4 Q6 ✅ |
+| ❌ | After lookup_order (bought 45 days ago), how should the loop decide refund vs escalate? | agentic loop | **The tool result goes into the conversation and the model reasons about the next step** | Preconfigured decision tree (M1) | M1 Q28 · M4 Q8 ✅ |
+| ❌ | Tools grew from 4 to 10 (or 1 to 7); accuracy drops; agent confuses issue_credit and process_refund | semantically overlapping tools | **Merge the overlapping tools (one tool + action param; lookup_order + include_tracking flag)** | Split into finance and delivery subagents (M1) | M1 Q31 · M4 Q11 ✅ · M6 Q19 ✅ |
+| ❌ | track_shipment throws a Python exception; the agent can only say something went wrong | agent has no next step | **Structured error: category, recoverable or not, suggestion (check the ID, search by order number)** | Retry with backoff inside the tool (M1) | M1 Q49 |
+| ❌ | MCP: (1) missing required param, (2) API returns 404, (3) API returns 503 | which error type for each | **(1) JSON-RPC protocol error; (2) and (3) tool result with isError** | All three as isError (M1) | M1 Q51 · M4 Q28 ✅ |
+| ❌ | lookup_order returns 40+ fields and fills context; 2 more orders to check | verbose tool output | **Keep only the relevant fields (items, purchase date, return deadline, status)** | Model writes a prose summary (M1) | M1 Q18 · M4 Q49 ✅ |
+| ❌ | 3 issues in one session, near the context limit; customer asks about the first issue again | exact IDs, amounts, status needed | **Extract structured issue data (ID, amount, status) into a separate context layer** | Prose summary of older turns (M1) | M1 Q56 · M4 Q4 ✅ |
+| ❌ | Sliding window keeps 25 message pairs; users say it forgets earlier topics and preferences | earlier preferences lost | **Hybrid: summarize older messages, keep recent ones verbatim** | Grow the window to 50 pairs (M6) | M6 Q53 |
+| ❌ | Customer returns after 4 hours; old session has lookup_order PENDING; agent keeps citing it | even after fresh tool calls | **New session + structured summary of the old one + fresh tool calls before replying** | Resume and strip the old tool_results (M1) | M1 Q37 · M4 Q33 ✅ · M6 Q2 ✅ |
+| ❌ | Confirm? dialog: 98% click within 2 seconds and still post to the wrong account / time / content | 2 seconds | **Show the full details (content, account, time, platform) in the confirmation** | Make the user type a confirmation phrase (M4) | M4 Q52 |
+| ⚠️ | send_notification times out; unknown if it was sent; retries cause duplicates | status unknown | **By logic: report status unknown, may already be sent, do NOT retry** | Site key: retry_safe true (wrong by logic, see ⚠️ table) | M1 Q46 = M4 Q40 |
+| 🟡 | Every tool error comes back as Operation failed | same message for every error | **Add errorCategory, isRetryable and a description at the source** | Few-shot to teach the model error patterns | M1 Q40 |
+| 🟡 | 90-minute billing session; the summary turned a $184.60 credit (Mar 3, promised by May 10) into vague text | amounts, dates, promises lost | **Case facts block (amounts, dates, IDs) sent with every prompt, never summarized** | Better summarizer / bigger window / summarize later | M6 Q40 |
+| 🟡 | The refund call times out midway while the customer waits | customer is waiting | **Explain, confirm eligibility, say it is a system error, offer escalation or retry later** | Keep retrying with backoff while the customer waits | M1 Q5 |
+| 🟡 | Agent invents an order_id; the question asks for the root cause | root cause | **Fix the description: order_id must come from lookup_order (if it asked to guarantee: a gate)** | Gate / validation when the question asks for the root cause | M1 Q23 |
+| 🟡 | remove_team_member(dry_run) preview is skipped in 15% of calls | ensure every, user explicitly confirms | **Two tools: preview_remove_member returns a single-use token; execute_remove_member requires it** | Prompt to always dry_run first / default dry_run=true | M6 Q28 |
+| 🟡 | Asking 3 clarifying questions makes 40% of users give up | too many questions | **Make a reasonable assumption, state it, invite correction** | One question per turn / classifier / silent lookup table | M4 Q31 |
+| 📘 | Agent skips get_customer in 12% of cases and refunds without a verified customer | 12%, skips a required step | **Gate in code: block process_refund until a verified customer ID exists** | Stronger system prompt / few-shot / routing classifier | Guide Q1 |
+| 📘 | Agent mixes up two tools whose descriptions are one line each | first step, minimal descriptions | **Expand the tool descriptions (what it does, when to use it, inputs, examples)** | Few-shot examples / routing layer / merge the tools | Guide Q2 |
+| 📘 | FCR 55%: agent escalates easy cases and handles hard ones alone | escalation is miscalibrated | **Explicit escalation criteria + few-shot examples in the system prompt** | Self-reported confidence score / separate classifier / sentiment analysis | Guide Q3 |
+
+**2. Code Generation with Claude Code** (18 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔁 | IaC repo with /terraform and /kubernetes: load only the rules for the file type being edited | a path pattern exists | **.claude/rules/ + paths: ["terraform/**/*"]** | Subfolder CLAUDE.md (M1); @import in the root CLAUDE.md (M4) | M1 Q25 · M4 Q21 |
+| 🔁 | Monorepo with 15 packages and 3 standards; no naming pattern; maintainers know what each package needs | no pattern, maintainers decide | **@import the right standard in each package's CLAUDE.md** | .claude/rules/ with paths: listing each folder (M1); left blank (M4) | M1 Q20 · M4 Q29 |
+| 🔁 | 8-item review checklist; the team also uses Claude for many other tasks | only needed when reviewing | **/review slash command (.claude/commands/review.md)** | Put it in CLAUDE.md (M2); dedicated review subagent (M5) | M2 Q44 · M5 Q34 |
+| 🔁 | Add a Redis cache with 5-minute TTL; you are new to production caching | unfamiliar domain | **Have Claude interview you first (invalidation, consistency, failure modes)** | Plan mode reading the /products code (M2, M5) | M2 Q48 · M5 Q1 |
+| 🔁 | Migration script mishandles records that contain null | one edge case | **Give a test case: input with null + expected output** | Describe the bug in words and rewrite the whole script (M2, M5) | M2 Q37 · M5 Q4 |
+| 🔁 | Intermittent 500 errors, 200+ files, unknown which component is involved | unknown where | **Dynamic decomposition: create subtasks from findings, adapt the plan** | Full plan of every code path before reading code (M2, M5) | M2 Q12 · M5 Q6 |
+| ❌ | CLAUDE.md conventions are followed only sometimes; first diagnostic step? | first step, inconsistent | **/memory to see which memory files are loaded** | Search ~/.claude for conflicting rules (M1) | M1 Q50 · M4 Q15 ✅ |
+| ❌ | 3 rules in CLAUDE.md, but Claude still edits db/migrations | never / prefer / after every edit | **permissions.deny for migrations + logging rule stays in CLAUDE.md + PostToolUse hook for Prettier** | Move everything to .claude/rules/ (M2) | M2 Q41 · M5 Q55 ✅ |
+| ❌ | Production bug with a clear stack trace to one function, in a module you do not know | clear stack trace | **Direct execution: read the trace and the code, fix it** | Plan mode to list possible root causes (M5) | M2 Q10 ✅ · M5 Q12 · M6 Q26 ✅ |
+| ❌ | Add one date check inside one function in one file | one file, small | **Direct execution** | Plan mode to analyze impact on the booking flow (M4) | M4 Q46 |
+| ❌ | Auth library v2 to v3: callback to Promise, User type changed, 3 methods removed, imported in 45 files | breaking changes, several modules | **Plan mode: explore usage, map code paths, make a migration strategy, then implement** | Bump the version, run the tests, fix each failure (M6) | M6 Q22 |
+| ❌ | Every PR gets the same 3 steps: style, security, docs | fixed, known steps | **Prompt chaining** | Orchestrator-workers (M2) | M2 Q5 · M5 Q5 ✅ |
+| ⚠️ | PDF report: narrow columns, date format, page breaks; the three issues affect each other | issues interact | **All three in one detailed message (guide 3.5) - your pick, correct** | Site key: fix one at a time and test each (wrong by guide, see ⚠️ table) | M2 Q42 · M5 Q23 · M6 Q20 |
+| 🟡 | Code format is right only some of the time | every time | **PostToolUse hook, matcher Edit\|Write, runs Prettier** | Stop hook + prompt asking the model to check | M1 Q22 · M4 Q9 ✅ |
+| 🟡 | Add tests to a 200-file legacy codebase; no priorities given | open-ended | **Glob/Grep to map the structure, prioritize key modules, adapt the plan** | Read all 200 files first / fixed schedule | M2 Q53 ✅ · M5 Q42 blank |
+| 📘 | Create a /review command that the whole team gets | team-wide | **.claude/commands/ in the repo** | ~/.claude/commands/ (personal) / CLAUDE.md / .claude/config.json (does not exist) | Guide Q4 |
+| 📘 | Split a monolith into microservices | large, architectural | **Plan mode** | Direct execution, fix as you go | Guide Q5 |
+| 📘 | Conventions depend on file type; test files are scattered across folders | scattered files of the same type | **.claude/rules/ with glob paths:** | Root CLAUDE.md / skills / per-folder CLAUDE.md | Guide Q6 |
+
+**3. Multi-Agent Research System** (15 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔴 | Web data says 35% (2024), an internal report says 18% (2022); synthesis flags a contradiction | different years | **Subagents include publication / collection dates in their structured output** | Treat the most recent data as authoritative, older data to an appendix (M2, M5, M6) | M2 Q22 · M5 Q51 · M6 Q17 |
+| 🔴 | Financial JSON, news prose and patent lists all get rendered as bullet points | tabular clarity, narrative flow, hard to scan | **Synthesis renders each type: financial = tables, news = prose, technical = structured lists** | Standardize all to prose (M6 twice); conversion layer to one common format (M5) | M2 Q27 ✅ · M5 Q53 · M6 Q27, Q30 |
+| 🔁 | 12 precedents analyzed one by one (3 minutes); make it faster, but the coordinator must still track and debug | coordinator visibility | **Coordinator spawns several subagents in parallel and merges the results** | The analysis subagent spawns its own child subagents (M2, M5) | M2 Q4 · M5 Q24 |
+| 🔁 | One analyze_document tool with a free-text instruction; 35% of results need re-requests | one tool, many jobs | **Split into extract_data_points, summarize_content, verify_claim_against_source, each with a contract** | Better description + examples (M1, M4) | M1 Q44 · M4 Q32 · M6 Q44 ✅ |
+| ❌ | Coordinator calls web search, waits, then calls document analysis; the two are independent | independent but sequential | **Coordinator emits 2 Task calls in one response** | Async orchestration layer outside the agent (M5) | M2 Q35 ✅ · M5 Q29 |
+| ❌ | Coordinator gives step-by-step orders; subagents fail on new topics | over-specified | **Give goals + quality criteria; the subagent chooses how to search** | Classifier for well-defined vs exploratory tasks (M1) | M1 Q7 · M4 Q13 ✅ |
+| ❌ | Curation agent makes 18+ sequential calls; it must see all candidates to choose | see everything to choose | **Combined discover_and_analyze returns all candidates + scores; add_to_collection stays separate** | Preview + approve by a fixed rule (M1) | M1 Q3 · M4 Q37 ✅ |
+| 🟡 | Summarizing a follow-up takes 40 seconds through a subagent | the coordinator already has the context | **The coordinator summarizes from its own context** | Prompt caching for the subagent | M1 Q6 |
+| 🟡 | The final report loses which source each fact came from | source metadata lost | **Subagents return a claim-source mapping (claim, URL/doc, quote, date); synthesis keeps it** | Inline citations in prose summaries | M1 Q55 · M4 Q45 |
+| 🟡 | A multi-agent job crashes; resume without redoing the work | resume after a crash | **Each agent writes a manifest file; the coordinator reads it on resume** | Restart from scratch / rely on chat history | M1 Q45 |
+| 🟡 | Query types are diverse and evolving | diverse and evolving | **The coordinator (LLM) decides how to route each query** | Fast-path rules / pattern routing / trained classifier | M2 Q16 |
+| 🟡 | A contract amendment changes 30 days to 45 days | two values, both real | **Schema keeps multiple values + source + effective date** | Pick one value | M2 Q32 |
+| 📘 | Report about creative industries is missing music, writing and film | each subagent did its own part well | **The coordinator decomposed the topic too narrowly** | Blame the search or synthesis subagents | Guide Q7 |
+| 📘 | Web search subagent times out | what the coordinator should receive | **Structured error context: what was tried, partial results, alternatives** | Generic status / empty result as success / stop the whole workflow | Guide Q8 |
+| 📘 | Synthesis needs to verify facts; 85% are simple checks | 85% simple | **Give synthesis one narrow verify_fact tool; complex checks go via the coordinator** | Give synthesis all search tools / batch verify / pre-cache | Guide Q9 |
+
+**4. Developer Productivity** (20 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔁 | Cache logic is spread over 15 files; understand it before adding a trigger | understand before changing | **Follow imports + class hierarchy, find the base class, Read it, trace each invalidation** | Glob + read the largest file (M2); Grep invalidate and read nearby lines (M5) | M2 Q6 · M5 Q21 |
+| 🔁 | After reading 8 of 45 files, answers get worse and earlier patterns are forgotten | context degrading, same task | **Subagents for specific questions (find all test files); the main agent keeps the big picture** | Summary + clear everything (M2); Grep function names instead of reading (M5) | M2 Q26 · M5 Q50 |
+| 🔁 | Agent uses Grep instead of analyze_dependencies (description: Analyzes dependency graph) | one job, vague description | **Expand the description: what it returns (direct imports, transitive deps, cycles)** | Split into 3 tools (M2); routing instructions in the system prompt (M5) | M2 Q7 · M5 Q26 |
+| 🔁 | An MCP server exposes prompts (templates) besides tools | MCP prompts | **They show up as slash commands that users run** | Added to the tool registry for the model to call (M1, M4) | M1 Q21 · M4 Q42 |
+| ❌ | Find every file that imports @company/auth | text inside the files | **Grep the import line (content search)** | find -type d -name *auth* (M2) | M2 Q17 · M5 Q31 ✅ |
+| ❌ | Insert a function in the middle of a file; Edit fails because no anchor text is unique | not unique | **Read the whole file, insert, Write it back** | Edit with replace_all (M2) | M2 Q38 · M5 Q16 ✅ |
+| ❌ | A new dev must understand auth across 800+ files and many services | one flow across services | **Grep the auth entry point, Read it, follow imports and calls** | Parallel subagent per service (M3) | M3 Q11 |
+| ❌ | 30+ minutes of exploration; answers are inconsistent; the dev has to repeat things | long session | **Scratchpad file with key findings, re-read when needed** | Summarize every file before exploring (M2) | M2 Q29 · M5 Q2 ✅ |
+| ❌ | 25 minutes on rendering; answers now say typical rendering patterns; next question is how physics integrates with rendering | typical patterns, integrates with | **Summarize the rendering findings, spawn a physics subagent with that summary** | Independent physics subagent, merge yourself (M5); /clear | M2 Q8 ✅ · M5 Q22 |
+| ❌ | 3 MCP servers (git, Jira, docs); one request needs all three | how the tools become available | **Every server's tools are discovered at connect and usable together** | Agent picks one server and loads only its tools (M5) | M2 Q14 ✅ · M5 Q9 |
+| ❌ | 3 MCP servers (issues, wiki, DB); the agent makes 8-10 blind calls because it does not know what each has | blind exploratory calls | **Expose each server's catalog as MCP resources** | Orchestrator routes by keyword to one server (M3) | M3 Q2 |
+| ❌ | User says delete old backups; agent calls delete_file although policy says archive | most directly improve tool selection | **Expand both descriptions (when to use each, not for backups)** | Server-side validation that blocks deletes (M4) | M1 Q59 ✅ · M4 Q56 |
+| ❌ | get_neighborhood_info(address) always needs get_property_details first, only to get the address | a call made only to fetch one field | **get_neighborhood_info takes property_id and looks up the address itself** | Merge both into one tool (M4) | M1 Q60 ✅ · M4 Q57 |
+| ❌ | One tool for refund / cancel / reship, each with different params; missing or extra params | different param sets | **Split into 3 tools, each with only its own params** | if-then-else schema / nested object / all optional + few-shot; left blank (M4) | M1 Q27 ✅ · M4 Q54 |
+| ❌ | Document of 175-190K tokens, last third missed, 200K context, tool definitions take 2,500 tokens | add up the numbers | **Tool definitions + system prompt + document nearly fill the 200K** | Exceeds the effective attention span (M5) | M2 Q43 ✅ · M5 Q35 |
+| 🟡 | Find every eval( call, or the SYNC_CONFLICT error string across 12 services | text inside files | **Grep** | Glob *eval* / ls -R (file names only) | M3 Q5 · M2 Q45 |
+| 🟡 | Subagent read 47 files, the connection dropped, a teammate renamed 2 functions | most context still valid | **Resume the subagent + tell it about the renamed functions** | New session / paste the whole transcript / ignore the rename | M5 Q58 · M6 Q46 |
+| 🟡 | Yesterday's session is still useful; 3 of the 12 analyzed files were modified | small, known change | **Resume + tell it which 3 files changed so it re-reads them** | New session / re-read all 12 / say nothing | M2 Q49 ✅ · M5 Q11 blank |
+| 🟡 | Try 2 refactor approaches from the same analysis | two branches from one point | **fork_session** | Redo the analysis twice | M2 Q40, Q54 |
+| 🟡 | Need standard access to Jira data | standard integration | **Use an existing community MCP server for Jira** | Write a custom server / curl / export to markdown | M3 Q4 |
+
+**5. Claude Code for CI/CD** (15 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔁 | Review misses callers in unchanged files that use the old argument order; reviews run async | unchanged files not included | **Turn-limited agentic review: the model reads files and searches via tools** | Chain-of-thought (M2); parallel per-file passes + dependents + summary call (M6) | M2 Q33 · M5 Q19 ✅ · M6 Q8 |
+| ❌ | CI test generation: trivial asserts, hand-built records instead of fixture factories | in the first place | **CLAUDE.md: test standards + good vs trivial examples + list of fixture factories** | Second Claude pass that scores and deletes weak tests (M6) | M3 Q9 ✅ · M6 Q15 |
+| ❌ | One prompt reviews security + API + logic; few-shot raises logic 34% to 41% but API drops 82% to 68% | one area up, another down | **Separate prompts per area, each with its own examples, then merge findings** | Replace the few-shot with a checklist in the same prompt (M3) | M3 Q3 |
+| ❌ | 30+ file PR; report_findings JSON is cut off at max_tokens | truncated output | **Split into several calls by file group, merge the findings arrays** | Return a markdown list instead (M3) | M3 Q6 |
+| 🟡 | Managed Code Review (GitHub App) posts 18 noisy findings per PR | GitHub App review | **REVIEW.md at the repo root (paths to skip, required checks)** | Edit the workflow file / put the rules in CLAUDE.md | M3 Q1 |
+| 🟡 | 30% false positives come from team-specific conventions | persistent context on every review | **Write the conventions in CLAUDE.md** | Filter afterwards / remove the surrounding context | M3 Q13 |
+| 🟡 | Cap turns and spend, enforced by Claude Code itself | Claude Code stops by itself | **--max-turns 10 --max-budget-usd 2.00** | timeout-minutes (the runner) / cheaper model / dontAsk | M3 Q8 |
+| 🟡 | CI startup takes 18 seconds from auto-discovery; root CLAUDE.md standards are still needed | keep the defaults, add the standards | **--bare + --append-system-prompt-file ./CLAUDE.md** | --system-prompt-file (replaces the default prompt) | M3 Q14 |
+| 🟡 | The review only processes the diff; Claude stopped using its file tools | replaced vs added | **--append-system-prompt (keeps the default prompt)** | --system-prompt (replaces the default and loses the tool guidance) | M2 Q47 |
+| 🟡 | Prompt says only report issues you are sure of; real bugs get hidden | the hedging instruction hides bugs | **Report everything with confidence + severity, filter later** | Second pass with the same prompt / more thinking | M3 Q7 |
+| 🟡 | Half of the findings are ignored as trivial; fix it before adding infrastructure | before adding infrastructure | **Explicit criteria: what to report, what to skip** | Self-score 1-10 / highly confident only / classifier | M3 Q12 |
+| 🟡 | 35% false positives; the model must generalize to code it has not seen | generalize | **Annotated few-shot examples** | Long spec / be conservative / keyword filter | M3 Q10 |
+| 📘 | CI job hangs waiting for input | non-interactive | **claude -p** | CLAUDE_HEADLESS / --batch (do not exist) / < /dev/null | Guide Q10 |
+| 📘 | Move both the pre-merge check and the overnight report to the Batch API | someone waits on the pre-merge check | **Batch only the overnight report; the pre-merge check stays on the sync API** | Batch both / batch + timeout fallback | Guide Q11 |
+| 📘 | 14-file PR review is shallow and contradicts itself | the files are in the prompt, just too many | **Per-file passes + one integration pass** | Bigger context / make devs split PRs / majority vote of 3 runs | Guide Q12 |
+
+**6. Structured Data Extraction** (20 câu)
+
+| | Story | Clue | ✅ Chọn | ❌ Bẫy (mock bạn đã chọn) | Câu |
+|---|---|---|---|---|---|
+| 🔴 | lookup_citations runs before the DOI exists; extract_metadata must run first | two options start the same, read the end | **Forced tool_choice {"type":"tool","name":"extract_metadata"}, enrichment in subsequent turns** | The same forced choice for every API call (M2, M5, M6) | M2 Q51 · M5 Q46 · M6 Q11 |
+| 🔁 | Batch of 10,000 documents; 300 fail with context_length_exceeded | input too long | **Chunk and resubmit only the 300 failed documents** | Raise max_tokens (M2, M5) | M2 Q19 · M5 Q41 |
+| 🔁 | 12% fail Pydantic (expected float, got 2 to 3); a plain retry fails the same way | unchanged retry fails | **Resubmit with the specific validation error** | Preprocess the source documents (M2, M5) | M2 Q46 · M5 Q45 |
+| 🔁 | Main benefit of JSON fields over free text for downstream agents | the word deterministic is a trap | **The agent reads exact values without parsing text** | The model processes JSON deterministically (M1, M4) | M1 Q33 · M4 Q26 |
+| 🔁 | Reviewers can check only 5% of extractions; which ones should they get? | limited capacity | **Low-confidence extractions + ambiguous or contradictory documents** | A random 5% sample (M2, M5) | M2 Q18 · M5 Q32 |
+| 🔁 | 12% semantic errors pass the schema; reviewers can check 20% | semantic errors | **Field-level confidence + calibrate thresholds on a labeled set** | Documents with formatting anomalies / unusual layouts (M5, M6) | M2 Q57 ✅ · M5 Q47 · M6 Q50 |
+| ❌ | materials field: cotton blend vs Cotton/Polyester mix vs empty | inconsistent format | **Few-shot with 2-3 input/output pairs** | Bigger model (M2) | M2 Q13 · M5 Q49 ✅ |
+| ❌ | 23% of corrections are measures like a handful or a splash: invented numbers or blanks | a repeated pattern | **Few-shot showing how to keep the original measure text** | Fine-tune on the 847 corrections (M2) | M2 Q50 · M5 Q43 ✅ |
+| ❌ | property_type enum fails 8%: studio, loft, duplex... and new types keep appearing | long-term, new types | **Enum + other + a property_type_detail field** | Free string + normalize later (M2) | M2 Q55 · M5 Q14 ✅ |
+| ⚠️ | Batch API (50% off, up to 24h); SLA 30 hours with 99.9% reliability | 99.9%, worst case | **Submit every 4 hours (4 + 24 = 28h) - your pick, correct** | Site key: every 6 hours (exactly 30h, no margin, see ⚠️ table) | M6 Q32 |
+| 🟡 | Retry-with-error fixes most failures in 2-3 tries; when is it LEAST effective? | the info is not in the input | **Co-authors shown as et al. when the full list exists only in another document** | Format errors (retries fix those) | M6 Q37 |
+| 🟡 | Calendar JSON is often invalid and downstream rejects it | syntax errors | **Tool use with an input schema** | Prompt + parse the text | M2 Q3, Q59 |
+| 🟡 | skills string[]: Python and SQL sometimes joined, unstated skills added, length 5-10 vs 40+ | all three are inconsistency | **Few-shot showing how to split, what counts as stated, level of detail** | Limit to 10-20 skills | M2 Q20 ✅ · M5 Q15 blank |
+| 🟡 | The field is nullable but the model still invents 500 | the schema is already nullable | **Instruct it to return null when the info is absent** | Make the field required | M2 Q36 |
+| 🟡 | 5% of fields are empty although the document has the info (inline citations vs bibliography) | different document structures | **Few-shot with varied document structures** | Retry unchanged / make the fields optional | M2 Q58 |
+| 🟡 | 12% errors hide in high-confidence results; you need ongoing measurement | measure | **Stratified random sampling every week** | Re-extract / lower the threshold / heuristics | M2 Q15 · M5 Q13 |
+| 🟡 | 97% overall accuracy; is it ready to automate? | an aggregate can hide a weak type | **Measure per document type and per field first** | Trust the overall number / pilot and wait for errors | M2 Q52 |
+| 🟡 | ML extraction confidence: 23% of wrong ones still pass, 31% of right ones still go to review | routing by confidence | **Return field + confidence + request_review set by a tested threshold in code + reason** | Raw score + few-shot so the model reads it | M1 Q13 · M4 Q55 |
+| 🟡 | Prices come as $12 vs 12.00, icons vs text | normalization | **Strict schema + normalization rules in the prompt** | Post-processing script / second call | M2 Q28 · M5 Q8 |
+| 🟡 | 50,000 contracts, 2-week deadline, 82% pass the schema on the first try | cost-efficient + deadline | **Batch all, then resubmit only the failures in new batches, refining the prompt between them** | Real-time API for everything / resubmit everything | M6 Q25 |
 
 ### ⚠️ Đáp án mock đã kiểm tra là SAI
 

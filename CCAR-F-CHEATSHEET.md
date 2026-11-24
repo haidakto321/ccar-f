@@ -266,7 +266,7 @@
 | M1 Q32 (thiếu `user_id`) | strict schema | ⚠️ tranh cãi: "bảo đảm cấu trúc" => schema; "giúp **hiểu**" => description |
 | M2 Q42 = M5 Q23 = M6 Q20 (3 lỗi format PDF **ảnh hưởng nhau**) | sửa **lần lượt**, test từng bước (2 site khác nhau đều ghi vậy) | gửi **cả 3 trong 1 message** (guide 3.5). Lần lượt = cho lỗi **độc lập** |
 | M6 Q32 (SLA 30h, batch tới 24h) | gửi mỗi **6h** | mỗi **4h** (guide 4.5 nguyên văn). 6h + 24h = đúng 30h, không dư cho retry |
-| Cheatsheet site M6 | "tách coverage / threshold stage"; "few-shot sửa được thông tin thiếu" | không có trong guide. Bớt báo sai => **tiêu chí cụ thể**. Thông tin không có trong nguồn => **null / đưa người xem** (retry, few-shot đều vô ích) |
+| Cheatsheet site M6 (luật 21) | "few-shot sửa được thông tin thiếu" | thông tin **không có** trong nguồn => **null / đưa người xem** (retry, few-shot đều vô ích). Few-shot chỉ giúp khi thông tin **có** nhưng ở dạng lạ. (Luật 17 "tách find / filter" là **đúng**, xem cặp precision / recall ở mục 5 D4) |
 | M1 (giải thích) | chương sách, flag, tên MCP bịa | chỉ tin **đáp án**, kiểm với guide (notes mục 10) |
 
 ---
@@ -339,6 +339,8 @@
 | Cặp | Phân biệt |
 |---|---|
 | Lỗi **syntax** vs **semantic** | syntax = JSON **hỏng cú pháp** (thiếu ngoặc) => **tool_use + schema** là hết. Semantic = JSON đúng cú pháp nhưng **nội dung sai** (cộng các dòng không ra tổng, giá trị nằm nhầm field) => schema không bắt được => code kiểm tra + **retry kèm lỗi** (5.3) |
+| Báo **sai nhiều** vs **sót** bug | báo sai nhiều (precision) => **tiêu chí cụ thể** báo gì / bỏ gì, ❌ "be conservative" / "only high-confidence". Sót bug vì prompt dặn "chỉ báo cái chắc chắn" (recall) => bước tìm **báo hết** kèm confidence + severity, bước sau **lọc theo ngưỡng** (5.1, M3 Q7) |
+| `calculated_total` vs `stated_total` | tổng tự cộng từ các dòng **khác** tổng ghi trên hóa đơn => **flag** cho người xem (+ `conflict_detected`). ❌ để model / pass 2 **tự sửa cho khớp** (che mất lỗi) (5.4) |
 | Retry **có ích** vs **vô ích** | có ích: lỗi **format, cấu trúc** (model tự sửa được). Vô ích: thông tin **không có** trong tài liệu (retry mấy lần cũng không có) => đánh dấu thiếu / đưa người xem (5.4) |
 | Field **required** vs **nullable** | field có thể **không có** trong tài liệu => để **nullable**. Để required => model **bịa** cho đủ (5.3) |
 | enum mở rộng | thêm `"other"` + field `detail` ghi giá trị thật, thêm `"unclear"` khi mơ hồ => model không bị ép chọn sai (5.3) |

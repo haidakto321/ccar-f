@@ -27,18 +27,24 @@
 | 1 | Hỏi / điều tra trước (M1 Q8, Q29) | Khách **đòi người rõ ràng** => escalate **ngay**. Bực nhưng làm được => đề nghị làm **hoặc** escalate. ❌ hỏi thêm trước |
 | 2 | Tóm tắt văn xuôi (Q18, Q56, Q37) | Giữ dữ liệu bằng **cấu trúc**: chỉ field cần, lớp context riêng, session mới + structured summary. ❌ prose, ❌ resume với tool result cũ |
 | 3 | Error cho model (M1 Q14, Q49, Q51 · M4 Q60) | Có **loại + retry được không + bước tiếp**. Request hỏng => JSON-RPC protocol error. Tool chạy mà lỗi => `isError`. Lỗi để agent nói với user => **nguyên nhân + bước khắc phục**, ❌ mã lỗi kỹ thuật |
-| 4 | Cấu hình Claude Code (M1 Q20, Q25, Q50 · M2 Q41, Q44 · M4 Q21, Q29) | Tự hỏi "**có pattern đường dẫn không?**". Có => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước. "**Never** sửa X" => `permissions.deny`. Checklist chỉ dùng lúc review => slash command, ❌ CLAUDE.md (luôn load) |
-| 5 | Gộp / tách tool (M1 Q3, Q31, Q44 · M2 Q7 · M4 Q32, Q54, Q56, Q57) | 1 tool **nhiều việc** hoặc **nhiều bộ tham số** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng. Tool **1 việc**, description sơ sài => **viết lại description**, ❌ tách, ❌ validation server. Tool B gọi tool A chỉ để lấy 1 field => **B nhận ID tự tra**, ❌ gộp |
+| 4 | Cấu hình Claude Code (M1 Q20, Q25, Q50 · M2 Q41, Q44 · M4 Q21, Q29 · M5 Q34) | Tự hỏi "**có pattern đường dẫn không?**". Có => rules + `paths:`. Không pattern, maintainer tự biết => **@import**. Lúc theo lúc không => **/memory** trước. "**Never** sửa X" => `permissions.deny`. Checklist chỉ dùng lúc review => slash command, ❌ CLAUDE.md (luôn load), ❌ subagent riêng |
+| 5 | Gộp / tách tool (M1 Q3, Q31, Q44 · M2 Q7 · M4 Q32, Q54, Q56, Q57 · M5 Q26) | 1 tool **nhiều việc** hoặc **nhiều bộ tham số** => tách. 2 tool **trùng nghĩa** => gộp. Model cần **thấy hết** để chọn => tool trả dữ liệu, hành động để riêng. Tool **1 việc**, description sơ sài => **viết lại description**, ❌ tách, ❌ validation server. Tool B gọi tool A chỉ để lấy 1 field => **B nhận ID tự tra**, ❌ gộp |
 | 6 | Hook khi có cách đầy đủ hơn (M1 Q2, Q52 · M4 Q18) | Nhiều đáp án là code => chọn cái **phủ mọi trường hợp** (kiểm tra sau khi loop dừng; tool tự tạo yêu cầu duyệt) |
 | 7 | Prompt caching (Q6, Q54) | Caching chỉ là **chi phí / tốc độ**, không sửa gốc. Chi tiết ngoài phạm vi thi => thường là **bẫy** |
-| 8 | Chia task (M2 Q5, Q12) | Bước **cố định, biết trước** => **prompt chaining**. Việc **mở**, chưa biết lỗi ở đâu => **dynamic** (vừa tìm vừa đổi kế hoạch). ❌ orchestrator-workers cho việc cố định, ❌ kế hoạch đầy đủ trước khi biết gì |
-| 9 | Làm to hơn (M2 Q13, Q50) | Output không nhất quán / case lạ bị bịa => **few-shot**. ❌ model to hơn, ❌ fine-tune, ❌ temperature 0 |
-| 10 | Context xuống cấp khi khám phá lâu (M2 Q26, Q29) | **scratchpad file** + **subagent** cho câu hỏi cụ thể. ❌ clear hết + 1 report, ❌ tóm tắt mọi file trước |
-| 11 | Chọn built-in tool + khám phá code (M2 Q6, Q17, Q38 · M3 Q11) | Grep = **nội dung** (import, error message). Glob / `find` = **tên** file. Edit không có text unique => **Read + Write**. Hiểu code: Grep **entry point** rồi theo **import / function call**. ❌ file to nhất trước, ❌ subagent chia theo service khi cần hiểu 1 luồng |
-| 12 | Iterative refinement (M2 Q37, Q48) | 1 edge case => **test case** (input + output mong muốn). Domain **lạ** => **interview pattern**. Lỗi ảnh hưởng nhau => **1 message** |
+| 8 | Chia task (M2 Q5, Q12 · M5 Q6, Q42) | Bước **cố định, biết trước** => **prompt chaining**. Việc **mở**, chưa biết lỗi ở đâu => **dynamic** (vừa tìm vừa đổi kế hoạch). ❌ orchestrator-workers cho việc cố định, ❌ kế hoạch đầy đủ trước khi biết gì |
+| 9 | Làm to hơn (M2 Q13, Q50 · M6 Q53) | Output không nhất quán / case lạ bị bịa => **few-shot**. ❌ model to hơn, ❌ fine-tune, ❌ temperature 0. Sliding window mất thông tin cũ => **hybrid summary**, ❌ window to hơn |
+| 10 | Context xuống cấp khi khám phá lâu (M2 Q26, Q29 · M5 Q22, Q50) | **scratchpad file** + **subagent** cho câu hỏi cụ thể. Chuyển sang chủ đề liên quan => tóm tắt findings rồi spawn subagent **kèm summary**. ❌ clear hết + 1 report, ❌ tóm tắt mọi file trước, ❌ subagent độc lập rồi tự gộp |
+| 11 | Chọn built-in tool + khám phá code (M2 Q6, Q17, Q38 · M3 Q11 · M5 Q21) | Grep = **nội dung** (import, error message). Glob / `find` = **tên** file. Edit không có text unique => **Read + Write**. Hiểu code: Grep **entry point** rồi theo **import / function call**. ❌ file to nhất trước, ❌ subagent chia theo service khi cần hiểu 1 luồng |
+| 12 | Iterative refinement (M2 Q37, Q48 · M5 Q1, Q4) | 1 edge case => **test case** (input + output mong muốn). Domain **lạ** => **interview pattern**. Lỗi ảnh hưởng nhau => **1 message** |
 | 13 | 1 prompt / 1 call ôm quá nhiều (M3 Q3, Q6) | Thêm cho mảng A thì mảng B tụt, hoặc output bị cắt ở `max_tokens` => **chia nhiều prompt / call nhỏ** rồi gộp. ❌ checklist trong cùng prompt, ❌ đổi sang markdown |
 | 14 | MCP tool / resource / prompt (M1 Q21, M4 Q42 · M3 Q2) | **Tool** = model tự gọi. **Resource** = dữ liệu / catalog để đọc (`@`-mention, bớt call dò dẫm). **Prompt** = template user chạy => **slash command** |
 | 15 | Bẫy "deterministic" (M1 Q33, M4 Q26) | Model **không bao giờ** deterministic. Lợi ích JSON có field = **không phải parse text** |
+| 16 | Plan mode: cần / không cần (M4 Q46 · M5 Q1, Q12 · M6 Q22) | Plan mode chỉ khi việc **to, nhiều file, nhiều cách làm**. Thư viện đổi **breaking API** ở 45 file nhiều module => **plan mode**, ❌ bump rồi sửa test fail dần. Bug có **stack trace rõ** / sửa **1 hàm 1 file** => **direct**. Chưa biết **yêu cầu** (domain lạ) => **interview pattern** (plan mode đọc code, không hỏi bạn) |
+| 17 | Chọn cái đưa người xem (M2 Q18 · M5 Q32, Q47 · M6 Q50) | **confidence thấp (từng field, calibrate) / tài liệu mơ hồ, mâu thuẫn**. ❌ random (random = để **đo**), ❌ heuristic theo layout |
+| 18 | Lỗi extraction (M2 Q19, Q46, Q51 · M5 Q41, Q45, Q46 · M6 Q11 🔴 lần 3) | Input quá dài (`context_length_exceeded`) => **chunk + gửi lại chỉ cái lỗi**, ❌ `max_tokens` (= output). Lỗi format validation => **gửi lại kèm lỗi cụ thể**, ❌ tiền xử lý. Tool X phải chạy trước => forced X **request đầu**, ❌ forced **mọi** request |
+| 19 | Multi-agent (M2 Q4, Q22 · M5 Q24, Q29, Q51, Q53 · M6 Q17 🔴 lần 3, Q27, Q30) | Song song => **coordinator** spawn / gọi **2 Task trong 1 response**, ❌ subagent tự spawn con, ❌ lớp async ngoài. Số khác năm => **ghi ngày**, ❌ tin số mới nhất. Nhiều loại nội dung => **render theo loại**, ❌ ép về 1 format (kể cả "văn xuôi hết") |
+| 20 | Hội thoại quên thông tin cũ (M4 Q22 · M6 playlist, Q53) | Mới 2-3 lượt đã quên => app **không gửi lịch sử** trong `messages` (API stateless), ❌ "vượt context window". Hội thoại dài, sliding window bỏ lượt cũ => **hybrid**: tóm tắt cũ + giữ mới nguyên văn; số tiền / ngày / ID => **case facts block**. ❌ tăng window |
+| 21 | Review sót bug xuyên file (M2 Q33 · M6 Q8) | Bug ở file **không có trong prompt** (caller ở file không đổi) => **review agentic giới hạn lượt** (model tự Read / Grep theo reference). ❌ chain-of-thought, ❌ pass song song + nhét dependents tĩnh. **Khác** 14 file đã có trong prompt mà review nông => chia pass (attention dilution) |
 
 ---
 
@@ -48,7 +54,9 @@
 |---|---|---|
 | M1 Q46 = M4 Q40 (timeout, không biết đã gửi chưa) | `retry_safe: true` | báo "**status unknown, đừng retry**" (retry => gửi trùng) |
 | M1 Q32 (thiếu `user_id`) | strict schema | ⚠️ tranh cãi: "bảo đảm cấu trúc" => schema; "giúp **hiểu**" => description |
-| M2 Q42 (3 lỗi format PDF **ảnh hưởng nhau**) | sửa **lần lượt**, test từng bước | gửi **cả 3 trong 1 message** (guide 3.5). Lần lượt = cho lỗi **độc lập** |
+| M2 Q42 = M5 Q23 = M6 Q20 (3 lỗi format PDF **ảnh hưởng nhau**) | sửa **lần lượt**, test từng bước (2 site khác nhau đều ghi vậy) | gửi **cả 3 trong 1 message** (guide 3.5). Lần lượt = cho lỗi **độc lập** |
+| M6 Q32 (SLA 30h, batch tới 24h) | gửi mỗi **6h** | mỗi **4h** (guide 4.5 nguyên văn). 6h + 24h = đúng 30h, không dư cho retry |
+| Cheatsheet site M6 | "tách coverage / threshold stage"; "few-shot sửa được thông tin thiếu" | không có trong guide. Bớt báo sai => **tiêu chí cụ thể**. Thông tin không có trong nguồn => **null / đưa người xem** (retry, few-shot đều vô ích) |
 | M1 (giải thích) | chương sách, flag, tên MCP bịa | chỉ tin **đáp án**, kiểm với guide (notes mục 10) |
 
 ---

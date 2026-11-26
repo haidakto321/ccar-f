@@ -417,3 +417,106 @@
 ## 7. ❌ Không thi (thấy đáp án nói về mấy cái này thì cảnh giác)
 
 Fine-tuning · RLHF / Constitutional AI · auth / billing / OAuth · host MCP server · embedding / vector DB · computer use · vision · **streaming** · rate limit / tính giá · tokenizer · **prompt caching chi tiết** · cấu hình AWS / GCP / Azure · benchmark model · chi tiết ngôn ngữ / framework cụ thể
+
+---
+
+## 8. 📗 Chủ đề mới, viết như câu thi thật
+
+> 6 chủ đề 📗 chưa gặp trong mock nào. Tự chọn đáp án trước, rồi mở **Answer**. Mỗi đáp án đã kiểm với guide (số mục trong ngoặc).
+
+### Q1. False positives (4.4)
+
+A code-review agent posts structured findings on every pull request. Developers dismiss about 30% of them as false positives. The team wants to learn **which code constructs** trigger the dismissed findings, so they can improve the review prompt. What should you do?
+
+- A. Ask developers to explain each dismissed finding in the PR chat, and read the chat every week.
+- B. Add a `detected_pattern` field to each structured finding, then analyze which patterns get dismissed.
+- C. Raise the confidence threshold so that fewer findings are posted on each pull request.
+- D. Add few-shot examples of past false positives to the review prompt to suppress them.
+
+<details><summary>Answer</summary>
+
+**B.** Clue: "which code constructs" + "dismissed" = you need one data field per finding that you can count. `detected_pattern` = guide 4.4 word for word ("enable analysis of false positive patterns when developers dismiss findings").
+Trap: A (free text in chat cannot be counted), C (hides findings, you still do not learn the pattern), D (you do not know the patterns yet).
+
+</details>
+
+### Q2. Large output between subagents (1.3 + 5.1)
+
+A research system has a coordinator and two subagents. Subagent A (document analysis) produces a 60K-token analysis. Subagent B (synthesis) needs parts of it, but B has a limited context budget. How should A's results reach B?
+
+- A. B automatically inherits A's context, because both were spawned by the same coordinator.
+- B. A calls B directly through a callback as soon as its analysis is finished.
+- C. The coordinator pastes A's full 60K-token raw output into B's prompt so nothing is lost.
+- D. A returns structured key facts and reference IDs; the coordinator puts what B needs in B's prompt.
+
+<details><summary>Answer</summary>
+
+**D.** Subagents do **not** inherit context and there are **no** callbacks: context must be passed in the prompt (guide 1.3). Too big for B => the upstream agent returns structured data (key facts, citations, relevance scores) instead of verbose content (guide 5.1).
+Trap: A and B (features that do not exist), C (fills B's limited budget).
+⚠️ The words "shared store + reference IDs" come from the practice site, not the guide. If the question has **no** size limit => put A's complete findings in B's prompt (guide 1.3).
+
+</details>
+
+### Q3. Skill frontmatter (3.2)
+
+Your team has an `/analyze-deps` skill that scans the whole codebase. Its long exploration output floods the main conversation, and it should only be able to use Read, Grep, and Glob. Where do you configure this?
+
+- A. In the `SKILL.md` frontmatter: `context: fork` for its own context and `allowed-tools` to limit tools.
+- B. In `.claude/settings.json`: a `permissions.deny` list, plus a hook that hides the skill's output.
+- C. In the project CLAUDE.md: a rule asking for short skill output and read-only tools only.
+- D. In `.mcp.json`: register the skill as an MCP server with its own context and a limited tool list.
+
+<details><summary>Answer</summary>
+
+**A.** Guide 3.2: `context: fork` = runs the skill in an isolated sub-agent context, so the long output stays out of the main conversation. `allowed-tools` = limits tools while the skill runs.
+Trap: B (`permissions.deny` applies to the whole session, not one skill), C (CLAUDE.md is a request, not enforced), D (a skill is not an MCP server).
+
+</details>
+
+### Q4. Lost in the middle (5.1)
+
+A synthesis agent receives a 40-page report built from several subagents' results. It uses findings from the first and last sections reliably, but often misses findings in the middle sections. The report fits easily in the context window. What should you do?
+
+- A. Switch to a larger model with a bigger context window so the whole report gets equal attention.
+- B. Split the report into three equal parts and send each part in a separate API request.
+- C. Put a key-findings summary at the top and organize the details under clear section headers.
+- D. Repeat the full report twice in the prompt so that the middle sections get more attention.
+
+<details><summary>Answer</summary>
+
+**C.** Clue: start and end are fine, the middle is missed, and it "fits easily" = a **position** problem ("lost in the middle"), not a size problem. Guide 5.1: key findings summary at the beginning + explicit section headers.
+Trap: A (a bigger window does not fix position), B (synthesis needs everything together), D (doubles the tokens, the middle is still the middle).
+
+</details>
+
+### Q5. Machine-readable CI output (3.6)
+
+A CI pipeline runs Claude Code on every pull request, and a script reads the findings to post them as inline PR comments. The script often breaks when the wording of Claude's answer changes. What should you do?
+
+- A. Add a CLAUDE.md rule telling Claude to always answer using the same sentence format.
+- B. Run `claude -p` with `--output-format json` and `--json-schema` so output follows a fixed schema.
+- C. Parse the free-text answer with a stricter regex that covers more wording variations.
+- D. Run Claude Code in interactive mode and have a developer paste the findings into the script.
+
+<details><summary>Answer</summary>
+
+**B.** Guide 3.6: `--output-format json` + `--json-schema` = machine-parseable structured findings for inline PR comments. `-p` = non-interactive, so CI does not hang waiting for input.
+Trap: C (regex breaks again when the wording changes), A (a request, not a guarantee), D (not automated).
+
+</details>
+
+### Q6. tool_choice with several extraction tools (4.3)
+
+An intake pipeline receives documents of unknown type: invoices, receipts, or contracts. There is one extraction tool per type (`extract_invoice`, `extract_receipt`, `extract_contract`). Every document must produce structured output, never a plain-text reply. How should you set `tool_choice`?
+
+- A. `"auto"`, plus a system prompt rule telling the model to always call one of the tools.
+- B. `{"type": "tool", "name": "extract_invoice"}`, because invoices are the most common type.
+- C. `"auto"` with temperature 0, so the model reliably picks a tool every single time.
+- D. `"any"`, so the model must call a tool but chooses which extraction tool fits.
+
+<details><summary>Answer</summary>
+
+**D.** Clue: "must call a tool" + "unknown which one" = `"any"` (guide 4.3: guarantee structured output when multiple extraction schemas exist).
+Trap: A and C (`"auto"` may still reply in text), B (forces the invoice tool on receipts and contracts). Forced tool is only for "this one tool must run **first**" (e.g. `extract_metadata`).
+
+</details>
